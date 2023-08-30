@@ -1,0 +1,1 @@
+roslaunch multicam_server camera_cpluplus.launch video_stream_provider:=0 camera_name:=cam0 visualize:=True fps:=20 buffer_queue_size:=0  width:=0 height:=0

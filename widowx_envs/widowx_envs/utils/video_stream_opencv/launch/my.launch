@@ -1,0 +1,18 @@
+<launch>
+    <arg name="camera_name" default="camera0" />
+  	<!-- video_stream_provider can be a number as a video device or a url of a video stream -->
+  	<arg name="video_stream_provider" default="0" />
+  	<!-- frames per second to query the camera for -->
+  	<arg name="fps" default="30" />
+  	<!-- frame_id for the camera -->
+  	<arg name="frame_id" default="world" />
+	<arg name="visualize" default="false"/>
+
+    <include file="$(find video_stream_opencv)/launch/camera.launch">
+        <arg name="video_stream_provider" value="$(arg video_stream_provider)"/>
+        <arg name="camera_name" value="$(arg camera_name)"/>
+        <arg name="visualize" value="$(arg visualize)"/>
+        <arg name="fps" value="$(arg fps)"/>
+        <arg name="frame_id" value="$(arg frame_id)" />
+    </include>
+</launch>

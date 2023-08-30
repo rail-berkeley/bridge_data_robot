@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- video_stream_provider has to be an index of video device -->
+    <arg name="video_stream_provider" default="0" />
+    <!-- frames per second for publish -->
+    <arg name="fps" default="30" />
+    <!-- frame_id for the camera -->
+    <arg name="frame_id" default="world" />
+    <!-- defines if the script should try to automatically reconnect if the frame was not captured -->
+    <arg name="retry_on_fail" default="false" />
+    <!-- path to the connector chart if should be used -->
+    <arg name="buffer_queue_size" default="2" />
+    <!-- name of the topic to publish images -->
+    <arg name="camera_name" default="camera0" />
+    <arg name="node_name" default="streamer" />
+    <arg name="python_node" default="false" />
+
+    <group if="$(arg python_node)">
+        <node pkg="multicam_server" type="streamer.py" name="$(arg node_name)" output="screen">
+            <param name="video_stream_provider" type="int" value="$(arg video_stream_provider)" />
+            <param name="fps" type="double" value="$(arg fps)" />
+            <param name="frame_id" type="string" value="$(arg frame_id)" />
+            <param name="retry_on_fail" type="bool" value="$(arg retry_on_fail)" />
+            <param name="buffer_queue_size" type="int" value="$(arg buffer_queue_size)" />
+            <param name="camera_name" type="string" value="$(arg camera_name)" />
+        </node>
+    </group>
+
+    <group unless="$(arg python_node)">
+        <include file="$(find video_stream_opencv)/launch/camera.launch">
+            <arg name="width" default="640"/>
+            <arg name="height" default="480"/>
+            <arg name="video_stream_provider" value="$(arg video_stream_provider)" />
+            <arg name="fps" value="$(arg fps)" />
+            <arg name="frame_id" value="$(arg frame_id)" />
+            <arg name="buffer_queue_size" value="$(arg buffer_queue_size)" />
+            <arg name="camera_name" value="$(arg camera_name)" />
+        </include>
+    </group>
+</launch>
