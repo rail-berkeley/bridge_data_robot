@@ -1,4 +1,4 @@
-# widowx_envs
+# Bridge Data Robot
 
 Code for controlling Trossen WidowX robot arms.
 
@@ -8,12 +8,12 @@ Code for controlling Trossen WidowX robot arms.
 - `docker_compose.yml`: contains all of the docker-compose services that will be used to run the robot.
 
 ### Host machine setup
-In order install dependencies on the host machine, run `host_install.sh`.
+In order install dependencies on the host machine, run `./host_install.sh`.
 
 ### Setup
-First, we need to build and launch the ROS service that communicates with the robot. This service is defined by the `robonet` entry in `docker-compose.yml`. It uses the `robonet-base` image which is built from the `widowx_envs` directory (`see widowx_envs/Dockerfile`). To build and run the `robonet-base` service, run:
+First, we need to build and launch the ROS service that communicates with the robot. This service is defined by the `robonet` entry in `docker-compose.yml`. It uses the `robonet-base` image which is built from the `widowx_envs` directory (see `widowx_envs/Dockerfile`). To build and run the `robonet-base` service, run:
 
-```
+```bash
 USB_CONNECTOR_CHART=/absolute/path/to/usb_connector_chart.yml docker compose up --build robonet
 ```
 
@@ -21,7 +21,7 @@ This builds the `robonet-base` image, which contains all of the ROS dependencies
 
 Once this is running, you can execute commands in the running container like so:
 
-```
+```bash
 docker compose exec robonet bash -lic "go_sleep"
 ```
 
@@ -77,7 +77,7 @@ You will also need to update the device IDs in `widowx_envs/widowx/launch/realse
 
 If you run into following errors:
 
-```
+```bash
 Traceback (most recent call last):
   File "urllib3/connectionpool.py", line 677, in urlopen
   File "urllib3/connectionpool.py", line 392, in _make_request
@@ -91,7 +91,7 @@ PermissionError: [Errno 13] Permission denied
 ```
 that can be fixed by running the following commands and subsequently restarting the PC (the log out and log back in is sometimes not sufficient):
 
-```
+```bash
 sudo groupadd docker
 sudo usermod -aG docker $USER
 ```
