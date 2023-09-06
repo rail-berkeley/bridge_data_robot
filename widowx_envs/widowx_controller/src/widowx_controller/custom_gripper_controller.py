@@ -15,8 +15,10 @@ except:
     # newer version of interbotix sdk
     from interbotix_xs_msgs.msg import JointSingleCommand
 
+from widowx_controller.controller_base import GripperControllerBase
 
-class GripperController:
+
+class GripperController(GripperControllerBase):
     def __init__(self, robot_name, create_node=False, upper_limit=0.035, lower_limit=0.010, des_pos_max=1, des_pos_min=0):
         if create_node:
             rospy.init_node('gripper_controller')

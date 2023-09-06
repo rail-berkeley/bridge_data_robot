@@ -1,4 +1,3 @@
-from widowx_envs.utils.robot_controller_interface import RobotController
 import numpy as np
 import rospy
 from pyquaternion import Quaternion
@@ -18,7 +17,9 @@ except:
 from widowx_envs.utils.exceptions import Environment_Exception
 from modern_robotics.core import JacobianSpace, Adjoint, MatrixLog6, se3ToVec, TransInv, FKinSpace
 import widowx_envs.utils.transformation_utils as tr
+
 from widowx_controller.custom_gripper_controller import GripperController
+from widowx_controller.controller_base import RobotControllerBase
 
 
 def compute_joint_velocities_from_cartesian(Slist, M, T, thetalist_current):
@@ -98,8 +99,9 @@ DEFAULT_ROTATION = np.array([[0 , 0, 1.0],
                              [0, 1.0,  0],
                              [-1.0,  0, 0]])
 
+##############################################################################
 
-class WidowX_Controller(RobotController):
+class WidowX_Controller(RobotControllerBase):
     def __init__(self, robot_name, print_debug, gripper_params, enable_rotation='6dof', gripper_attached='custom', normal_base_angle=0):
         """
         gripper_attached: either "custom" or "default"
@@ -325,7 +327,10 @@ class WidowX_Controller(RobotController):
             self.bot.gripper.close()
 
 
+##############################################################################
+
 class WidowXVelocityController(WidowX_Controller):
+    # NOTE (YL) THIS CONTROLLER IS not working
     def __init__(self, *args, **kwargs):
         super(WidowXVelocityController, self).__init__(*args, **kwargs)
         self.bot.dxl.robot_set_operating_modes("group", "arm", "velocity")
@@ -475,6 +480,8 @@ class WidowXVelocityController(WidowX_Controller):
         self.bot.core.pub_group.publish(JointCommands(np.zeros(self._qn)))
 
 
+##############################################################################
+
 if __name__ == '__main__':
     dir = '/mount/harddrive/spt/trainingdata/realworld/can_pushing_line/2020-09-04_09-28-29/raw/traj_group0/traj2'
     dict = pkl.load(open(dir + '/policy_out.pkl', "rb"))
@@ -489,7 +496,6 @@ if __name__ == '__main__':
     controller.move_to_neutral()
     # controller.move_to_state(states[0, :3], target_zangle=states[0, 3])
     controller.move_to_state(states[0, :3], target_zangle=0.)
-    # controller.redistribute_objects()
 
     prev_eef = controller.get_cartesian_pose()[:3]
     for t in range(20):

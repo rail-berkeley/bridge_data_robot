@@ -2,21 +2,27 @@ import logging
 
 import numpy as np
 import rospy
-from widowx.srv import DisableController
-from widowx.srv import EnableController
-from widowx.srv import GetCartesianPose
-from widowx.srv import GetGripperDesiredState
-from widowx.srv import GetState
-from widowx.srv import GetVRButtons
-from widowx.srv import GotoNeutral
-from widowx.srv import MoveToEEP
-from widowx.srv import MoveToState
-from widowx.srv import OpenGripper
-from widowx.srv import SetGripperPosition
+
+from widowx_controller.srv import DisableController
+from widowx_controller.srv import EnableController
+from widowx_controller.srv import GetCartesianPose
+from widowx_controller.srv import GetGripperDesiredState
+from widowx_controller.srv import GetState
+from widowx_controller.srv import GetVRButtons
+from widowx_controller.srv import GotoNeutral
+from widowx_controller.srv import MoveToEEP
+from widowx_controller.srv import MoveToState
+from widowx_controller.srv import OpenGripper
+from widowx_controller.srv import SetGripperPosition
 from widowx_envs.utils.exceptions import Environment_Exception
 
+from widowx_controller.controller_base import RobotControllerBase
 
-class WidowX_VRContollerClient:
+# TODO: abstract class for all controllers:
+# with internal ROS init, thus higher level impl doesnt need to interact
+# with ROS directly, middleware agnostic
+
+class WidowX_VRContollerClient(RobotControllerBase):
     def __init__(self, print_debug=False):
         rospy.init_node("vr_controller_client")
         logger = logging.getLogger('robot_logger')
@@ -128,5 +134,3 @@ class WidowX_VRContollerClient:
             service_func(position)
         except rospy.ServiceException as e:
             print("Service call failed: %s" % e)
-
-
