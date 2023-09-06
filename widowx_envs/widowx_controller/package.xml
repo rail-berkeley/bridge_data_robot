@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>widowx</name>
+  <name>widowx_controller</name>
   <version>0.0.0</version>
   <description>Package for controlling WidowX robots</description>
 

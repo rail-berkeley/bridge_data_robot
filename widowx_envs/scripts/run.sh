@@ -12,7 +12,7 @@ source ~/myenv/bin/activate
 # using 'exec' here is very important because roslaunch needs to do some cleanup after it exits
 # so when the container is killed the SIGTERM needs to be passed to roslaunch
 # TODO: make the camera ID configurable
-exec roslaunch widowx widowx_rs.launch \
+exec roslaunch widowx_controller widowx_rs.launch \
     ${video_stream_provider_string} camera_connector_chart:=/tmp/camera_connector_chart \
     serial_no_camera1:=829212071014 \
     python_node:=false realsense:=true

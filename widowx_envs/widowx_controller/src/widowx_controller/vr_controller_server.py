@@ -3,21 +3,21 @@
 import rospy
 import time
 from oculus_reader import OculusReader
-from widowx.widowx_controller import WidowX_Controller
+from widowx_controller.widowx_controller import WidowX_Controller
 from widowx_envs.control_loops import Environment_Exception
 import widowx_envs.utils.transformation_utils as tr
 from pyquaternion import Quaternion
 import numpy as np
 
 from std_msgs.msg import Float64
-from widowx.srv import GotoNeutral, GotoNeutralResponse
-from widowx.srv import MoveToEEP, MoveToEEPResponse
-from widowx.srv import MoveToState, MoveToStateResponse
-from widowx.srv import GetCartesianPose, GetCartesianPoseResponse
-from widowx.srv import GetState, GetStateResponse
-from widowx.srv import GetVRButtons, GetVRButtonsResponse
-from widowx.srv import EnableController, EnableControllerResponse
-from widowx.srv import DisableController, DisableControllerResponse
+from widowx_controller.srv import GotoNeutral, GotoNeutralResponse
+from widowx_controller.srv import MoveToEEP, MoveToEEPResponse
+from widowx_controller.srv import MoveToState, MoveToStateResponse
+from widowx_controller.srv import GetCartesianPose, GetCartesianPoseResponse
+from widowx_controller.srv import GetState, GetStateResponse
+from widowx_controller.srv import GetVRButtons, GetVRButtonsResponse
+from widowx_controller.srv import EnableController, EnableControllerResponse
+from widowx_controller.srv import DisableController, DisableControllerResponse
 
 from widowx_envs.policies.vr_teleop_policy import publish_transform
 

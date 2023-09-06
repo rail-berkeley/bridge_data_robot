@@ -5,8 +5,8 @@ from sensor_msgs.msg import JointState
 import time
 
 from std_msgs.msg import Float64
-from widowx.srv import OpenGripper, OpenGripperResponse
-from widowx.srv import GetGripperDesiredState, GetGripperDesiredStateResponse
+from widowx_controller.srv import OpenGripper, OpenGripperResponse
+from widowx_controller.srv import GetGripperDesiredState, GetGripperDesiredStateResponse
 
 try:
     # older version of interbotix sdk
