@@ -3,7 +3,7 @@
 import rospy
 import time
 from oculus_reader import OculusReader
-from widowx_envs.widowx.src.widowx_controller import WidowX_Controller
+from widowx.widowx_controller import WidowX_Controller
 from widowx_envs.control_loops import Environment_Exception
 import widowx_envs.utils.transformation_utils as tr
 from pyquaternion import Quaternion

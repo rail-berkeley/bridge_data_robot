@@ -5,23 +5,28 @@ import time
 from widowx_envs.utils.transformation_utils import state2transform
 import numpy as np
 import math
-from widowx_envs.base.base_env2 import BaseRobotEnv2
-from widowx_envs.widowx.src.widowx_controller import WidowX_Controller
-from widowx_envs.widowx.src.vr_controller_client import WidowX_VRContollerClient
+from widowx_envs.base.robot_base_env import RobotBaseEnv
 from widowx_envs.utils.exceptions import Environment_Exception
 from widowx_envs.utils.utils import ask_confirm
+
+from widowx.widowx_controller import WidowX_Controller
+from widowx.vr_controller_client import WidowX_VRContollerClient
+
 import os
 from gym import spaces
 import random
 from widowx_envs.utils.exceptions import Environment_Exception
 
+##############################################################################
 
-class WidowXEnv(BaseRobotEnv2):
+class WidowXEnv(RobotBaseEnv):
   
     def _default_hparams(self):
         robot_name = os.getenv('ROBONETV2_ARM')
         if robot_name is None:
-            print('Environment variable ROBONETV2_ARM has to be set. Please define it based on https://github.com/Interbotix/interbotix_ros_manipulators/tree/main/interbotix_ros_xsarms')
+            print('Environment variable ROBONETV2_ARM has to be set. \
+                    Please define it based on \
+                    https://github.com/Interbotix/interbotix_ros_manipulators/tree/main/interbotix_ros_xsarms')
             print('For instance in case of WidowX 250 Robot Arm 6DOF use:')
             print('echo "export ROBONETV2_ARM=wx250s" >> ~/.bashrc && source ~/.bashrc')
             raise RuntimeError
@@ -91,7 +96,8 @@ class WidowXEnv(BaseRobotEnv2):
                     self.move_to_neutral()
         else:
             if self._hp.randomize_initpos == 'restricted_space':
-                startpos = np.random.uniform(self._low_bound[:3] + np.array([0, 0, 0.085]), self._high_bound[:3] - np.array([0, 0.07, 0.01]))
+                startpos = np.random.uniform(self._low_bound[:3] + np.array([0, 0, 0.085]),
+                                             self._high_bound[:3] - np.array([0, 0.07, 0.01]))
                 # zangle = np.random.uniform(self._low_bound[3], self._high_bound[3])
                 zangle = np.random.uniform(0.5*np.pi, -0.5*np.pi)  # np.pi is neutral!
             elif self._hp.randomize_initpos == 'full_area':
@@ -120,6 +126,7 @@ class WidowXEnv(BaseRobotEnv2):
     def ask_confirmation(self, ):
         return ask_confirm("Was the trajectory okay? y/n")
 
+##############################################################################
 
 class RandomInit_WidowXEnv(WidowXEnv):
     def move_to_startstate(self):
@@ -137,6 +144,9 @@ class RandomInit_WidowXEnv(WidowXEnv):
         # while self._controller.get_continuous_gripper_position() < 0.98:
         #     print(self._controller.get_continuous_gripper_position())
         #     self._controller._gripper.open()
+
+
+##############################################################################
 
 class VR_WidowX(WidowXEnv):
     def __init__(self, env_params=None, **kwargs):
@@ -211,12 +221,15 @@ class VR_WidowX(WidowXEnv):
             print('trajectory accepted!')
             return True
 
+##############################################################################
+
 class VR_WidowX_DAgger(VR_WidowX):
     def __init__(self, env_params=None, **kwargs):
         super(VR_WidowX_DAgger, self).__init__(env_params, **kwargs)
 
     def ask_confirmation(self):
-        print('Was the trajectory okay? Press A to save a successful trajectory, trigger to save an unsuccessful trajectory, and RJ to discard')
+        print('Was the trajectory okay? \
+            Press A to save a successful trajectory, trigger to save an unsuccessful trajectory, and RJ to discard')
         buttons = self.get_vr_buttons()
 
         while buttons['A'] or buttons['RJ'] or buttons['RTr']:
@@ -237,6 +250,7 @@ class VR_WidowX_DAgger(VR_WidowX):
             print('unsuccessful trajectory accepted!')
             return 'Failure'
 
+##############################################################################
 
 class StateReachingWidowX(WidowXEnv):
     def __init__(self, env_params=None, fixed_goal=False):
@@ -294,6 +308,7 @@ class StateReachingWidowX(WidowXEnv):
         obs = super(StateReachingWidowX, self).reset(itraj=0)
         return obs
 
+##############################################################################
 
 class ImageReachingWidowX(StateReachingWidowX):
     def __init__(self, env_params=None, publish_images=True, fixed_image_size=64, fixed_goal=False):
@@ -318,7 +333,7 @@ class ImageReachingWidowX(StateReachingWidowX):
             self.image_pub = rospy.Publisher("/robonetv2_image/image_raw", Image, queue_size=10)
 
     def _default_hparams(self):
-        from widowx_envs.multicam_server.src.topic_utils import IMTopic
+        from multicam_server.topic_utils import IMTopic
         default_dict = {
             'camera_topics': [IMTopic('/camera0/image_raw')],
             'image_crop_xywh': None,  # can be a tuple like (0, 0, 100, 100)
@@ -344,7 +359,8 @@ class ImageReachingWidowX(StateReachingWidowX):
             trimmed_image = image[x:x+w, y:y+h]
 
         from skimage.transform import resize
-        downsampled_trimmed_image = resize(trimmed_image, (self.image_size, self.image_size), anti_aliasing=True, preserve_range=True).astype(np.uint8)
+        downsampled_trimmed_image = resize(trimmed_image, (self.image_size, self.image_size),
+                                           anti_aliasing=True, preserve_range=True).astype(np.uint8)
         if self._hp['transpose_image_to_chw']:
             downsampled_trimmed_image = np.transpose(downsampled_trimmed_image, (2, 0, 1))
         return self._to_float32_flat_image(downsampled_trimmed_image)
@@ -394,6 +410,8 @@ class ImageReachingWidowX(StateReachingWidowX):
         return obs
 
 
+##############################################################################
+
 class BridgeDataRailRLPrivateWidowXAdapter(WidowXEnv):
     def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, fixed_image_size=128,
                  control_viewpoint=0, # used for reward function
@@ -417,7 +435,7 @@ class BridgeDataRailRLPrivateWidowXAdapter(WidowXEnv):
         self.control_viewpoint = control_viewpoint
 
     def _default_hparams(self):
-        from widowx_envs.multicam_server.src.topic_utils import IMTopic
+        from multicam_server.topic_utils import IMTopic
         default_dict = {
             'gripper_attached': 'custom',
             'skip_move_to_neutral': True,
@@ -463,18 +481,35 @@ class BridgeDataRailRLPrivateWidowXAdapter(WidowXEnv):
         obs['full_image'] = full_obs['images']
         obs['t_get_obs'] = time.time() - t0
         return obs
+##############################################################################
 
 class BridgeDataRailRLPrivateWidowX(BridgeDataRailRLPrivateWidowXAdapter, WidowXEnv):
     def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, fixed_image_size=128):
-        super().__init__(env_params=env_params, reward_function=reward_function, task_id=task_id, num_tasks=num_tasks, fixed_image_size=fixed_image_size)
+        super().__init__(env_params=env_params,
+                         reward_function=reward_function,
+                         task_id=task_id,
+                         num_tasks=num_tasks,
+                         fixed_image_size=fixed_image_size)
+
+##############################################################################
 
 class BridgeDataRailRLPrivateVRWidowX(BridgeDataRailRLPrivateWidowXAdapter, VR_WidowX_DAgger):
     def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, fixed_image_size=128):
-        super().__init__(env_params=env_params, reward_function=reward_function, task_id=task_id, num_tasks=num_tasks, fixed_image_size=fixed_image_size)
+        super().__init__(env_params=env_params,
+                         reward_function=reward_function,
+                         task_id=task_id,
+                         num_tasks=num_tasks,
+                         fixed_image_size=fixed_image_size)
+
+##############################################################################
 
 class FinetuningBridgeDataWidowX(BridgeDataRailRLPrivateWidowX):
     def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, fixed_image_size=128):
-        super().__init__(env_params=env_params, reward_function=reward_function, task_id=task_id, num_tasks=num_tasks, fixed_image_size=fixed_image_size)
+        super().__init__(env_params=env_params,
+                         reward_function=reward_function,
+                         task_id=task_id,
+                         num_tasks=num_tasks,
+                         fixed_image_size=fixed_image_size)
         
         self.step_duration = 0.2
         self.last_tstep = time.time()
@@ -512,6 +547,8 @@ class FinetuningBridgeDataWidowX(BridgeDataRailRLPrivateWidowX):
             'state': obs['state'],
         } 
         return obs
+
+##############################################################################
 
 if __name__ == '__main__':
     env = StateReachingWidowX()

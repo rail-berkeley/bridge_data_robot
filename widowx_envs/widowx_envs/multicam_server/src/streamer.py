@@ -8,6 +8,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import copy
 
+##############################################################################
 
 class Streamer:
     def __init__(self):
@@ -104,6 +105,7 @@ def main():
     streamer = Streamer()
     rospy.spin()
 
+##############################################################################
 
 if __name__ == '__main__':
     main()

@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import rospy
 
+##############################################################################
 
 def get_param(parameter_name):
     if not rospy.has_param(parameter_name):
@@ -83,6 +84,8 @@ def populate_params():
     params['buffer_queue_size'] = get_param("~buffer_queue_size")
     params['python_node'] = get_param("~python_node")
     return params
+
+##############################################################################
 
 def main():
     base_call = "roslaunch multicam_server streamer.launch"
