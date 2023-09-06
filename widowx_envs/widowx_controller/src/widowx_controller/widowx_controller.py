@@ -6,6 +6,7 @@ from sensor_msgs.msg import JointState
 from threading import Lock
 import time
 from interbotix_xs_modules.arm import InterbotixArmXSInterface, InterbotixArmXSInterface, InterbotixRobotXSCore, InterbotixGripperXSInterface
+
 import modern_robotics as mr
 try:
     # older version of interbotix sdk
@@ -17,7 +18,7 @@ except:
 from widowx_envs.utils.exceptions import Environment_Exception
 from modern_robotics.core import JacobianSpace, Adjoint, MatrixLog6, se3ToVec, TransInv, FKinSpace
 import widowx_envs.utils.transformation_utils as tr
-from widowx.custom_gripper_controller import GripperController
+from widowx_controller.custom_gripper_controller import GripperController
 
 
 def compute_joint_velocities_from_cartesian(Slist, M, T, thetalist_current):
@@ -103,7 +104,7 @@ class WidowX_Controller(RobotController):
         """
         gripper_attached: either "custom" or "default"
         """
-        print('waiting for widowx to be set up...')
+        print('waiting for widowx_controller to be set up...')
         self.bot = ModifiedInterbotixManipulatorXS(robot_model=robot_name)
         # TODO: Why was this call necessary in the visual_foresight? With the new SDK it messes the motor parameters
         # self.bot.dxl.robot_set_operating_modes("group", "arm", "position", profile_type="velocity", profile_velocity=131, profile_acceleration=15)
@@ -331,6 +332,7 @@ class WidowXVelocityController(WidowX_Controller):
         self.bot.arm.set_trajectory_time(moving_time=0.2, accel_time=0.05)
 
         # TODO: do we need the SpaceMouseRemoteReader?
+        # TODO(YL): WARNING: This package is not avail, fix this
         from visual_mpc.envs.util.teleop.server import SpaceMouseRemoteReader
         self.space_mouse = SpaceMouseRemoteReader()
         rospy.Timer(rospy.Duration(0.02), self.update_robot_cmds)
@@ -480,7 +482,9 @@ if __name__ == '__main__':
     dict = pkl.load(open(dir + '/obs_dict.pkl', "rb"))
     states = dict['raw_state']
 
+    # TODO: check if renaming is required for widowx to widowx_controller
     controller = WidowXVelocityController('widowx', True)
+
     rospy.sleep(2)
     controller.move_to_neutral()
     # controller.move_to_state(states[0, :3], target_zangle=states[0, 3])
@@ -500,8 +504,3 @@ if __name__ == '__main__':
         print('desired eef pos', states[t, :3])
         print('delta', states[t, :3] - new_eef[:3])
         rospy.sleep(0.2)
-
-
-
-
-

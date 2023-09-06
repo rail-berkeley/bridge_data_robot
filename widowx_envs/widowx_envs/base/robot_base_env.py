@@ -12,7 +12,7 @@ from widowx_envs.policies.vr_teleop_policy import publish_transform
 import rospy
 from multicam_server.topic_utils import IMTopic
 from multicam_server.camera_recorder import CameraRecorder
-from widowx.widowx_controller import WidowX_Controller
+from widowx_controller.widowx_controller import WidowX_Controller
 
 import logging
 import json

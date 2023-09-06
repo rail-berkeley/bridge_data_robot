@@ -9,8 +9,7 @@ from widowx_envs.base.robot_base_env import RobotBaseEnv
 from widowx_envs.utils.exceptions import Environment_Exception
 from widowx_envs.utils.utils import ask_confirm
 
-from widowx.widowx_controller import WidowX_Controller
-from widowx.vr_controller_client import WidowX_VRContollerClient
+from widowx_controller.widowx_controller import WidowX_Controller
 
 import os
 from gym import spaces
