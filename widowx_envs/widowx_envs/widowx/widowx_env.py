@@ -318,7 +318,7 @@ class ImageReachingWidowX(StateReachingWidowX):
             self.image_pub = rospy.Publisher("/robonetv2_image/image_raw", Image, queue_size=10)
 
     def _default_hparams(self):
-        from widowx_envs.utils.multicam_server_rospkg.src.topic_utils import IMTopic
+        from widowx_envs.multicam_server.src.topic_utils import IMTopic
         default_dict = {
             'camera_topics': [IMTopic('/camera0/image_raw')],
             'image_crop_xywh': None,  # can be a tuple like (0, 0, 100, 100)
@@ -417,7 +417,7 @@ class BridgeDataRailRLPrivateWidowXAdapter(WidowXEnv):
         self.control_viewpoint = control_viewpoint
 
     def _default_hparams(self):
-        from widowx_envs.utils.multicam_server_rospkg.src.topic_utils import IMTopic
+        from widowx_envs.multicam_server.src.topic_utils import IMTopic
         default_dict = {
             'gripper_attached': 'custom',
             'skip_move_to_neutral': True,

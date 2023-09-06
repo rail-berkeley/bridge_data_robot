@@ -4,7 +4,7 @@ import os.path
 BASE_DIR = '/'.join(str.split(__file__, '/')[:-1])
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
-from widowx_envs.utils.multicam_server_rospkg.src.topic_utils import IMTopic
+from widowx_envs.multicam_server.src.topic_utils import IMTopic
 from widowx_envs.widowx.widowx_env import VR_WidowX
 from widowx_envs.control_loops import TimedLoop
 from widowx_envs.policies.vr_teleop_policy import VRTeleopPolicy
