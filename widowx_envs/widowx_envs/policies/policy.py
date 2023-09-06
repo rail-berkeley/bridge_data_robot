@@ -7,6 +7,7 @@ import pdb
 from widowx_envs.utils.utils import AttrDict, Configurable
 
 class Policy(Configurable):
+    """Abstract class for policy."""
     def _default_hparams(self):
         dict = AttrDict(
             ngpu=1,
