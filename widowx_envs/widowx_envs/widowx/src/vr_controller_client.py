@@ -2,17 +2,17 @@ import logging
 
 import numpy as np
 import rospy
-from robonetv2.srv import DisableController
-from robonetv2.srv import EnableController
-from robonetv2.srv import GetCartesianPose
-from robonetv2.srv import GetGripperDesiredState
-from robonetv2.srv import GetState
-from robonetv2.srv import GetVRButtons
-from robonetv2.srv import GotoNeutral
-from robonetv2.srv import MoveToEEP
-from robonetv2.srv import MoveToState
-from robonetv2.srv import OpenGripper
-from robonetv2.srv import SetGripperPosition
+from widowx.srv import DisableController
+from widowx.srv import EnableController
+from widowx.srv import GetCartesianPose
+from widowx.srv import GetGripperDesiredState
+from widowx.srv import GetState
+from widowx.srv import GetVRButtons
+from widowx.srv import GotoNeutral
+from widowx.srv import MoveToEEP
+from widowx.srv import MoveToState
+from widowx.srv import OpenGripper
+from widowx.srv import SetGripperPosition
 from widowx_envs.utils.exceptions import Environment_Exception
 
 

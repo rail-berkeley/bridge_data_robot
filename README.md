@@ -1,5 +1,7 @@
 # Bridge Data Robot
 
+> We are in the process of migrating the codebase to ROS2, so to support python version > 3.8
+
 Code for controlling Trossen WidowX robot arms.
 
 ### Project structure

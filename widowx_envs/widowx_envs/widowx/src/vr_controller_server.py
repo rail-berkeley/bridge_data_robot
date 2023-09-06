@@ -10,14 +10,14 @@ from pyquaternion import Quaternion
 import numpy as np
 
 from std_msgs.msg import Float64
-from robonetv2.srv import GotoNeutral, GotoNeutralResponse
-from robonetv2.srv import MoveToEEP, MoveToEEPResponse
-from robonetv2.srv import MoveToState, MoveToStateResponse
-from robonetv2.srv import GetCartesianPose, GetCartesianPoseResponse
-from robonetv2.srv import GetState, GetStateResponse
-from robonetv2.srv import GetVRButtons, GetVRButtonsResponse
-from robonetv2.srv import EnableController, EnableControllerResponse
-from robonetv2.srv import DisableController, DisableControllerResponse
+from widowx.srv import GotoNeutral, GotoNeutralResponse
+from widowx.srv import MoveToEEP, MoveToEEPResponse
+from widowx.srv import MoveToState, MoveToStateResponse
+from widowx.srv import GetCartesianPose, GetCartesianPoseResponse
+from widowx.srv import GetState, GetStateResponse
+from widowx.srv import GetVRButtons, GetVRButtonsResponse
+from widowx.srv import EnableController, EnableControllerResponse
+from widowx.srv import DisableController, DisableControllerResponse
 
 from widowx_envs.policies.vr_teleop_policy import publish_transform
 

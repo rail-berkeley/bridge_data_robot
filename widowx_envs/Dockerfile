@@ -38,6 +38,7 @@ RUN apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E
 RUN apt-get update -y && apt-get install -y \
     ros-noetic-ros-base \
     ros-noetic-realsense2-camera \
+    ros-noetic-video-stream-opencv \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -79,8 +80,8 @@ RUN source /opt/ros/noetic/setup.bash \
     && touch ~/.built
 
 # add utility functions
-RUN sudo ln -s ~/widowx_envs/widowx_envs/utils/go_to_sleep_pose.py /usr/local/bin/go_sleep
-RUN sudo ln -s ~/widowx_envs/widowx_envs/utils/go_to_neutral_pose.py /usr/local/bin/go_neutral
+RUN sudo ln -s ~/widowx_envs/scripts/go_to_sleep_pose.py /usr/local/bin/go_sleep
+RUN sudo ln -s ~/widowx_envs/scripts/go_to_neutral_pose.py /usr/local/bin/go_neutral
 
 RUN echo 'source ~/myenv/bin/activate' >> ~/.bashrc
 RUN echo 'source /opt/ros/noetic/setup.bash' >> ~/.bashrc

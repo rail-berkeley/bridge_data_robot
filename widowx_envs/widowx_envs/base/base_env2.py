@@ -6,8 +6,8 @@ import numpy as np
 from widowx_envs.utils.exceptions import Image_Exception
 import copy
 import rospy
-from widowx_envs.utils.multicam_server_rospkg.src.camera_recorder import CameraRecorder
-from widowx_envs.utils.multicam_server_rospkg.src.topic_utils import IMTopic
+from widowx_envs.multicam_server.src.camera_recorder import CameraRecorder
+from widowx_envs.multicam_server.src.topic_utils import IMTopic
 from widowx_envs.widowx.src.widowx_controller import WidowX_Controller
 from widowx_envs.utils import AttrDict
 from widowx_envs.policies.vr_teleop_policy import publish_transform
