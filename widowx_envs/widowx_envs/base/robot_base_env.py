@@ -5,16 +5,19 @@ from widowx_envs.utils import transformation_utils as tr
 import numpy as np
 from widowx_envs.utils.exceptions import Image_Exception
 import copy
-import rospy
-from widowx_envs.multicam_server.src.camera_recorder import CameraRecorder
-from widowx_envs.multicam_server.src.topic_utils import IMTopic
-from widowx_envs.widowx.src.widowx_controller import WidowX_Controller
 from widowx_envs.utils import AttrDict
 from widowx_envs.policies.vr_teleop_policy import publish_transform
+
+# Rospkg lib
+import rospy
+from multicam_server.topic_utils import IMTopic
+from multicam_server.camera_recorder import CameraRecorder
+from widowx.widowx_controller import WidowX_Controller
+
 import logging
 import json
 from gym import spaces
-from widowx_envs.policies.vr_teleop_policy import publish_transform
+
 from widowx_envs.utils import read_yaml_file
 import os
 from widowx_envs.utils.exceptions import Environment_Exception
@@ -24,7 +27,11 @@ def pix_resize(pix, target_width, original_width):
               target_width / float(original_width))).astype(np.int64)
 
 
-class BaseRobotEnv2(BaseEnv):
+class RobotBaseEnv(BaseEnv):
+    """
+    Inherited from abstract class BaseEnv
+    """
+    
     def __init__(self, env_params):
         self._hp = self._default_hparams()
         self._read_global_defaults_config_file()
@@ -126,7 +133,7 @@ class BaseRobotEnv2(BaseEnv):
                             des_pos_min=0,
                         )
         }
-        parent_params = super(BaseRobotEnv2, self)._default_hparams()
+        parent_params = super(RobotBaseEnv, self)._default_hparams()
         parent_params.update(default_dict)
         return parent_params
 

@@ -17,7 +17,7 @@ except:
 from widowx_envs.utils.exceptions import Environment_Exception
 from modern_robotics.core import JacobianSpace, Adjoint, MatrixLog6, se3ToVec, TransInv, FKinSpace
 import widowx_envs.utils.transformation_utils as tr
-from widowx_envs.widowx.src.custom_gripper_controller import GripperController
+from widowx.custom_gripper_controller import GripperController
 
 
 def compute_joint_velocities_from_cartesian(Slist, M, T, thetalist_current):

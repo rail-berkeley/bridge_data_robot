@@ -15,6 +15,7 @@ import geometry_msgs.msg
 import random
 
 def publish_transform(transform, name):
+    """TODO: it's bad to reinit the broadcaster every time, improve this"""
     translation = transform[:3, 3]
 
     br = tf2_ros.TransformBroadcaster()

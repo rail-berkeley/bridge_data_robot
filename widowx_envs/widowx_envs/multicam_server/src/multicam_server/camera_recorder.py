@@ -231,7 +231,7 @@ class CameraRecorder:
 
 
 if __name__ == '__main__':
-    from widowx_envs.multicam_server.src.topic_utils import IMTopic
+    from multicam_server.topic_utils import IMTopic
     rospy.init_node("camera_rec_test")
     imtopic = IMTopic('/cam1/image_raw')
     rec = CameraRecorder(imtopic)

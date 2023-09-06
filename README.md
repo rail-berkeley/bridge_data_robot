@@ -71,7 +71,7 @@ Instead of executing a command in a running container, `docker compose run` spin
 
 The RealSense cameras require different drivers than RGB cameras.  If you are using RealSenses, change the `camera_string` in `scripts/run.sh` to `realsense:=true`.
 
-You will also need to update the device IDs in `widowx_envs/widowx/launch/realsense.launch` to match your cameras.
+You will also need to update the device IDs in `widowx_envs/widowx/launch/widowx_rs.launch` to match your cameras.
 
 ## Troubleshooting
 
