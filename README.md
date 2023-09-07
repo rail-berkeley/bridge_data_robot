@@ -38,6 +38,19 @@ Explanation:
 
 If you really want to, you can also attach a bash shell interactively using `docker compose exec robonet bash`.
 
+### Data collection
+
+```bash
+# first create an empty directory to store the data
+mkdir -p $HOME/widowx_data
+
+# access the container
+docker compose exec robonet bash
+
+# start the data collection script
+python widowx_envs/widowx_envs/run_data_collection.py widowx_envs/experiments/bridge_data_v2/conf.py
+```
+
 ### Adding Codebases
 Additional codebases are incorporated by adding additional services to `docker-compose.yml`. See `docker-compose.yml` for an example with the `bridge_data_v2` codebase. Each codebase also needs a minimal Dockerfile that builds on top of the `robonet-base` image. An example Dockerfile might look like:
 
