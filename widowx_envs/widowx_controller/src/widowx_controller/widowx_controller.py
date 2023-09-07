@@ -3,6 +3,8 @@ import rospy
 from pyquaternion import Quaternion
 from sensor_msgs.msg import JointState
 from threading import Lock
+import logging
+import os
 import time
 from interbotix_xs_modules.arm import InterbotixArmXSInterface, InterbotixArmXSInterface, InterbotixRobotXSCore, InterbotixGripperXSInterface
 
@@ -102,7 +104,11 @@ DEFAULT_ROTATION = np.array([[0 , 0, 1.0],
 ##############################################################################
 
 class WidowX_Controller(RobotControllerBase):
-    def __init__(self, robot_name, print_debug, gripper_params, enable_rotation='6dof', gripper_attached='custom', normal_base_angle=0):
+    def __init__(self, robot_name, print_debug, gripper_params,
+                 enable_rotation='6dof',
+                 gripper_attached='custom',
+                 control_rate=800,
+                 normal_base_angle=0):
         """
         gripper_attached: either "custom" or "default"
         """
@@ -110,7 +116,25 @@ class WidowX_Controller(RobotControllerBase):
         self.bot = ModifiedInterbotixManipulatorXS(robot_model=robot_name)
         # TODO: Why was this call necessary in the visual_foresight? With the new SDK it messes the motor parameters
         # self.bot.dxl.robot_set_operating_modes("group", "arm", "position", profile_type="velocity", profile_velocity=131, profile_acceleration=15)
-        super(WidowX_Controller, self).__init__(robot_name, print_debug, gripper_attached=gripper_attached, gripper_params=gripper_params, init_rosnode=False)
+
+        if gripper_params is None:
+            gripper_params = {}
+
+        self._robot_name = robot_name
+        rospy.init_node("foresight_robot_controller")
+        rospy.on_shutdown(self.clean_shutdown)
+        self._control_rate = rospy.Rate(control_rate)
+
+        logger = logging.getLogger('robot_logger')
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_level = logging.WARN
+        if print_debug:
+            log_level = logging.DEBUG
+        ch = logging.StreamHandler()
+        ch.setLevel(log_level)
+        ch.setFormatter(formatter)
+        logger.addHandler(ch)
+        self._init_gripper(gripper_attached, gripper_params)
 
         self._joint_lock = Lock()
         self._angles, self._velocities, self._effort = {}, {}, {}
@@ -130,7 +154,13 @@ class WidowX_Controller(RobotControllerBase):
         # self.neutral_joint_angles[-2] = np.pi / 2
         self.neutral_joint_angles = np.array([-0.13192235, -0.76238847,  0.44485444, -0.01994175,  1.7564081,  -0.15953401])
         self.enable_rotation = enable_rotation
-        
+
+    def clean_shutdown(self):
+        pid = os.getpid()
+        logging.getLogger('robot_logger').info('Exiting example w/ pid: {}'.format(pid))
+        logging.shutdown()
+        os.kill(pid, 9)
+
     def move_to_state(self, target_xyz, target_zangle, duration=1.5):
         new_pose = np.eye(4)
         new_pose[:3, -1] = target_xyz

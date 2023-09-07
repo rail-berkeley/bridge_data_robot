@@ -45,8 +45,6 @@ class WidowX_VRContollerClient(RobotControllerBase):
         except rospy.ServiceException as e:
             print("Service call failed: %s" % e)
 
-
-
     def move_to_eep(self, target_pose, duration=1.5):
         rospy.wait_for_service('move_to_eep')
         try:
