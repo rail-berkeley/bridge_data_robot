@@ -1,3 +1,5 @@
+#! /usr/bin/python3
+
 from widowx_envs.control_loops import Environment_Exception
 import time
 from widowx_envs.base.base_env import BaseEnv
@@ -30,8 +32,7 @@ def pix_resize(pix, target_width, original_width):
 class RobotBaseEnv(BaseEnv):
     """
     Inherited from abstract class BaseEnv
-    """
-    
+    """   
     def __init__(self, env_params):
         self._hp = self._default_hparams()
         self._read_global_defaults_config_file()
@@ -44,7 +45,13 @@ class RobotBaseEnv(BaseEnv):
         self._obs_tol = self._hp.OFFSET_TOL
 
         assert (self._hp.gripper_attached == 'default' and not self._hp.continuous_gripper) or self._hp.gripper_attached != 'default', 'If gripper_attached == \'default\', continuous_gripper has to be False'
-        self._controller = self._hp.robot_controller(self._robot_name, self._hp.print_debug, gripper_attached=self._hp.gripper_attached, gripper_params=self._hp.gripper_params, normal_base_angle=self._hp.workspace_rotation_angle_z)
+        self._controller = self._hp.robot_controller(
+            self._robot_name,
+            self._hp.print_debug,
+            gripper_attached=self._hp.gripper_attached,
+            gripper_params=self._hp.gripper_params,
+            normal_base_angle=self._hp.workspace_rotation_angle_z)
+
         logging.getLogger('robot_logger').info('---------------------------------------------------------------------------')
         for name, value in self._hp.items():
             logging.getLogger('robot_logger').info('{}= {}'.format(name, value))
@@ -103,6 +110,12 @@ class RobotBaseEnv(BaseEnv):
             raise NotImplementedError('action mode {} not supported!'.format(self._hp.action_mode))
 
         self.time_for_get_obs = 0.08  # measured empirically, might need to be adjusted.
+
+    def controller(self):
+        """Public method to access the controller"""
+        if self._controller is None:
+            raise NotImplementedError('controller not implemented')
+        return self._controller
 
     def _default_hparams(self):
         default_dict = {'robot_name': None,
@@ -252,7 +265,7 @@ class RobotBaseEnv(BaseEnv):
             t1 = time.time()
             self.adaptive_wait(tstamp_return_obs - self.time_for_get_obs * 1.1)
             # print('adaptive wait for ', time.time() - t1)
-        obs = self._get_obs()
+        obs = self.current_obs()
         return obs
 
     def adaptive_wait(self, time_stamp):
@@ -267,7 +280,7 @@ class RobotBaseEnv(BaseEnv):
         eep = self._controller.get_cartesian_pose(matrix=True)
         return tr.transform2state(eep, self._controller.get_gripper_position(), self._controller.default_rot)
 
-    def _get_obs(self):
+    def current_obs(self):
         obs = {}
         t0 = time.time()
         j_angles, j_vel, eep = self._controller.get_state()
@@ -321,7 +334,7 @@ class RobotBaseEnv(BaseEnv):
 
     def _end_reset(self):
         self._reset_previous_qpos()
-        obs = self._get_obs()
+        obs = self.current_obs()
         return obs
 
     def move_to_neutral(self, duration=2.):

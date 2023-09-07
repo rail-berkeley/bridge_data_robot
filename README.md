@@ -16,10 +16,14 @@ In order install dependencies on the host machine, run `./host_install.sh`.
 First, we need to build and launch the ROS service that communicates with the robot. This service is defined by the `robonet` entry in `docker-compose.yml`. It uses the `robonet-base` image which is built from the `widowx_envs` directory (see `widowx_envs/Dockerfile`). To build and run the `robonet-base` service, run:
 
 ```bash
-USB_CONNECTOR_CHART=/absolute/path/to/usb_connector_chart.yml docker compose up --build robonet
+# first generate the usb config file
+./generate_usb_config.sh
+
+# build and run the robonet service
+USB_CONNECTOR_CHART=$(pwd)/usb_connector_chart.yml docker compose up --build robonet
 ```
 
-This builds the `robonet-base` image, which contains all of the ROS dependencies and the Python controller code from the `widowx_envs` directory. The USB connector chart is required to start the camera stream. You can get the USB device IDs by running `v4l2-ctl --list-devices`.
+This builds the `robonet-base` image, which contains all of the ROS dependencies and the Python controller code from the `widowx_envs` directory. The USB connector chart is required to start the camera stream. You can get the USB device IDs by running `v4l2-ctl --list-devices`, `./generate_usb_config.sh` automatically generates the config file for you.
 
 Once this is running, you can execute commands in the running container like so:
 

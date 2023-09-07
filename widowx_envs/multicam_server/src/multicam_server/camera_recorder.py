@@ -202,7 +202,8 @@ class CameraRecorder:
             if self._num_repeats < self.MAX_REPEATS:
                 self._num_repeats += 1
             else:
-                logging.getLogger('robot_logger').error('Too many repeated images. Check camera!')
+                logging.getLogger('robot_logger').error(f'Too many repeated images.\
+                    Check camera with topic {self._topic_name}!')
                 rospy.signal_shutdown('Too many repeated images. Check camera!')
         else:
             self._num_repeats = 0

@@ -4,7 +4,7 @@ import numpy as np
 import rospy
 from pyquaternion import Quaternion
 from sensor_msgs.msg import JointState
-from geometry_msgs.msgs import TransformStamped
+from geometry_msgs.msg import TransformStamped
 
 from threading import Lock
 import logging
