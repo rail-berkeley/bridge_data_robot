@@ -10,6 +10,7 @@ from pyquaternion import Quaternion
 import numpy as np
 
 from std_msgs.msg import Float64
+
 from widowx_controller.srv import GotoNeutral, GotoNeutralResponse
 from widowx_controller.srv import MoveToEEP, MoveToEEPResponse
 from widowx_controller.srv import MoveToState, MoveToStateResponse
@@ -19,8 +20,9 @@ from widowx_controller.srv import GetVRButtons, GetVRButtonsResponse
 from widowx_controller.srv import EnableController, EnableControllerResponse
 from widowx_controller.srv import DisableController, DisableControllerResponse
 
-from widowx_envs.policies.vr_teleop_policy import publish_transform
+from widowx_controller.widowx_controller import publish_transform
 
+##############################################################################
 
 class VR_WidowX_ControllerServer(WidowX_Controller):
     def __init__(self, grasp_mode='continuous', *args, **kwargs):
