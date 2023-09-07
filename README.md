@@ -51,6 +51,14 @@ docker compose exec robonet bash
 python widowx_envs/widowx_envs/run_data_collection.py widowx_envs/experiments/bridge_data_v2/conf.py
 ```
 
+At this point, the data_collection script will start initializing, and then throw an error of:
+```bash
+Device not found. Make sure that device is running and is connected over USB
+Run `adb devices` to verify that the device is visible.
+```
+
+This is expected, as our data collection requires the use of a Oculus VR headset to control the widowx arm. Hence, ensure that the VR headset is turned on and connected to the computer via USB.
+
 ### Adding Codebases
 Additional codebases are incorporated by adding additional services to `docker-compose.yml`. See `docker-compose.yml` for an example with the `bridge_data_v2` codebase. Each codebase also needs a minimal Dockerfile that builds on top of the `robonet-base` image. An example Dockerfile might look like:
 

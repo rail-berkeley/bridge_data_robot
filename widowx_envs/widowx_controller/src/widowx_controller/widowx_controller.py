@@ -1,11 +1,19 @@
+#! /usr/bin/python3
+
 import numpy as np
 import rospy
 from pyquaternion import Quaternion
 from sensor_msgs.msg import JointState
+from geometry_msgs.msgs import TransformStamped
+
 from threading import Lock
 import logging
 import os
 import time
+
+import tf2_ros
+from transformations import quaternion_from_matrix
+
 from interbotix_xs_modules.arm import InterbotixArmXSInterface, InterbotixArmXSInterface, InterbotixRobotXSCore, InterbotixGripperXSInterface
 
 import modern_robotics as mr
@@ -23,6 +31,30 @@ import widowx_envs.utils.transformation_utils as tr
 from widowx_controller.custom_gripper_controller import GripperController
 from widowx_controller.controller_base import RobotControllerBase
 
+##############################################################################
+
+def publish_transform(transform, name, parent_name='wx250s/base_link'):
+    """TODO(YL): it's bad to reinit the broadcaster every time, improve this"""
+    translation = transform[:3, 3]
+
+    br = tf2_ros.TransformBroadcaster()
+    t = TransformStamped()
+
+    t.header.stamp = rospy.Time.now()
+    t.header.frame_id = parent_name
+    t.child_frame_id = name
+    t.transform.translation.x = translation[0]
+    t.transform.translation.y = translation[1]
+    t.transform.translation.z = translation[2]
+
+    quat = quaternion_from_matrix(transform)
+    t.transform.rotation.w = quat[0]
+    t.transform.rotation.x = quat[1]
+    t.transform.rotation.y = quat[2]
+    t.transform.rotation.z = quat[3]
+
+    # print('publish transofrm', name)
+    br.sendTransform(t)
 
 def compute_joint_velocities_from_cartesian(Slist, M, T, thetalist_current):
     """Computes inverse kinematics in the space frame for an open chain robot
@@ -107,7 +139,6 @@ class WidowX_Controller(RobotControllerBase):
     def __init__(self, robot_name, print_debug, gripper_params,
                  enable_rotation='6dof',
                  gripper_attached='custom',
-                 control_rate=800,
                  normal_base_angle=0):
         """
         gripper_attached: either "custom" or "default"
@@ -121,9 +152,7 @@ class WidowX_Controller(RobotControllerBase):
             gripper_params = {}
 
         self._robot_name = robot_name
-        rospy.init_node("foresight_robot_controller")
         rospy.on_shutdown(self.clean_shutdown)
-        self._control_rate = rospy.Rate(control_rate)
 
         logger = logging.getLogger('robot_logger')
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
