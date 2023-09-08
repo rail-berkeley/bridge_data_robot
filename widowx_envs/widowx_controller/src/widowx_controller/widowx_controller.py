@@ -14,7 +14,8 @@ import time
 import tf2_ros
 from transformations import quaternion_from_matrix
 
-from interbotix_xs_modules.arm import InterbotixArmXSInterface, InterbotixArmXSInterface, InterbotixRobotXSCore, InterbotixGripperXSInterface
+from interbotix_xs_modules.arm import InterbotixArmXSInterface, InterbotixArmXSInterface, \
+    InterbotixRobotXSCore, InterbotixGripperXSInterface
 
 import modern_robotics as mr
 try:

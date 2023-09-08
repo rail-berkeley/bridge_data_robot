@@ -48,6 +48,9 @@ If you really want to, you can also attach a bash shell interactively using `doc
 # first create an empty directory to store the data
 mkdir -p $HOME/widowx_data
 
+# give sudo write access to the container
+sudo chown -R 1002:1002 $HOME/widowx_data
+
 # access the container
 docker compose exec robonet bash
 
