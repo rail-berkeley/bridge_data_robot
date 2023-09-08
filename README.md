@@ -49,7 +49,8 @@ If you really want to, you can also attach a bash shell interactively using `doc
 mkdir -p $HOME/widowx_data
 
 # give sudo write access to the container
-sudo chown -R 1002:1002 $HOME/widowx_data
+# we can check the id by running `id` in the container
+sudo chown -R 1000:1002 $HOME/widowx_data
 
 # access the container
 docker compose exec robonet bash
@@ -82,7 +83,7 @@ WORKDIR /home/robonet/code/bridge_data_v2
 
 First, we build the new image:
 
-```
+```bash
 docker compose build bridge_data_v2
 ```
 
