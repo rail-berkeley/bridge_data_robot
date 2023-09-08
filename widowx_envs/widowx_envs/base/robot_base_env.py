@@ -115,6 +115,7 @@ class RobotBaseEnv(BaseEnv):
         """Public method to access the controller"""
         if self._controller is None:
             raise NotImplementedError('controller not implemented')
+        self._reset_previous_qpos()  # TODO (YL) check if this is necessary
         return self._controller
 
     def _default_hparams(self):
@@ -324,7 +325,7 @@ class RobotBaseEnv(BaseEnv):
         self._controller.move_to_state(target_xyz, target_zangle, duration=duration)
 
     def _reset_previous_qpos(self):
-        rospy.sleep(0.5)
+        rospy.sleep(0.2)  # TODO (YL) check if this is necessary
         self._previous_target_qpos = self.get_full_state()
         # don't track orientation of axes which are not controlled
         if self._hp.action_mode == '3trans1rot':
