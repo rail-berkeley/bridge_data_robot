@@ -413,7 +413,7 @@ class ImageReachingWidowX(StateReachingWidowX):
 
 ##############################################################################
 
-class BridgeDataRailRLPrivateWidowXAdapter(WidowXEnv):
+class BridgeDataRailRLPrivateWidowX(WidowXEnv):
     def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, fixed_image_size=128,
                  control_viewpoint=0, # used for reward function
                  **kwargs
@@ -485,17 +485,7 @@ class BridgeDataRailRLPrivateWidowXAdapter(WidowXEnv):
 
 ##############################################################################
 
-class BridgeDataRailRLPrivateWidowX(BridgeDataRailRLPrivateWidowXAdapter, WidowXEnv):
-    def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, fixed_image_size=128):
-        super().__init__(env_params=env_params,
-                         reward_function=reward_function,
-                         task_id=task_id,
-                         num_tasks=num_tasks,
-                         fixed_image_size=fixed_image_size)
-
-##############################################################################
-
-class BridgeDataRailRLPrivateVRWidowX(BridgeDataRailRLPrivateWidowXAdapter, VR_WidowX_DAgger):
+class BridgeDataRailRLPrivateVRWidowX(BridgeDataRailRLPrivateWidowX, VR_WidowX_DAgger):
     def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, fixed_image_size=128):
         super().__init__(env_params=env_params,
                          reward_function=reward_function,
