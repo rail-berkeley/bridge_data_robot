@@ -31,10 +31,13 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Fix install ROS
+COPY ros_key.txt /tmp/ros_key.txt
+RUN apt-key add /tmp/ros_key.txt
 
 # Installs ROS
 RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
-RUN apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+# RUN apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
 RUN apt-get update -y && apt-get install -y \
     ros-noetic-ros-base \
     ros-noetic-realsense2-camera \
@@ -67,7 +70,7 @@ COPY . /home/${USER_ID}/widowx_envs
 RUN ln -s ~/widowx_envs ~/interbotix_ws/src/
 ENV PYTHONPATH="${PYTHONPATH}:/home/${USER_ID}/interbotix_ws/src/widowx_envs"
 
-ENV ROBONETV2_ARM=wx250s
+ENV ROBONETV2_ARM=vx300s
 ENV DATA=/home/robonet/trainingdata
 ENV EXP=/home/robonet/experiments
 
