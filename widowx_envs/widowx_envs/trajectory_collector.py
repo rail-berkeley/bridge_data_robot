@@ -3,8 +3,8 @@ import os.path
 import sys
 import numpy as np
 from widowx_envs.utils.utils import timed, AttrDict, Configurable
-from widowx_envs.utils.datautils.raw_saver import RawSaver
-from widowx_envs.utils.datautils.robonet_saver import RoboNetSaver
+from widowx_envs.utils.raw_saver import RawSaver
+
 sys.path.append('/'.join(str.split(__file__, '/')[:-2]))
 
 
@@ -40,8 +40,6 @@ class TrajectoryCollector(Configurable):
 
         if 'raw' in self._hp.save_format:
             self.savers['raw'] = RawSaver(self._hp.data_save_dir)
-        if 'robonet' in self._hp.save_format:
-            self.savers['robonet'] = RoboNetSaver(self._hp.data_save_dir, config['collection_metadata'])
 
 
     def _default_hparams(self):

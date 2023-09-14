@@ -11,4 +11,7 @@ source ~/myenv/bin/activate
 
 # using 'exec' here is very important because roslaunch needs to do some cleanup after it exits
 # so when the container is killed the SIGTERM needs to be passed to roslaunch
-exec roslaunch robonetv2 realsense.launch ${video_stream_provider_string} camera_connector_chart:=/tmp/camera_connector_chart python_node:=false realsense:=true
+exec roslaunch widowx_controller widowx_rs.launch \
+    ${video_stream_provider_string} camera_connector_chart:=/tmp/camera_connector_chart \
+    serial_no_camera1:=${REALSENSE_SERIAL} \
+    python_node:=false realsense:=true

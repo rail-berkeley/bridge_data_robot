@@ -1,5 +1,6 @@
 import argparse
-import imp
+import importlib.util  # replaced: import imp due to deprecation
+
 import json
 from widowx_envs.utils.utils import ask_confirm, save_config
 import datetime
@@ -23,12 +24,16 @@ class DataCollectionManager(object):
 
         args = parser.parse_args(args_in)
         if hyperparams is None:
-            hyperparams = imp.load_source('hyperparams', args.experiment)
+            spec = importlib.util.spec_from_file_location('hyperparams', args.experiment)
+            hyperparams = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(hyperparams)
             self.hyperparams = hyperparams.config
+            # hyperparams = imp.load_source('hyperparams', args.experiment)  # TODO: (YL) backup test then removed
+            # self.hyperparams = hyperparams.config
         else:
             self.hyperparams = hyperparams
         self.args = args
-        if save_dir_prefix is not '':
+        if save_dir_prefix != '':
             self.save_dir_prefix = save_dir_prefix
         else:
             self.save_dir_prefix = args.prefix
