@@ -59,6 +59,8 @@ docker compose exec robonet bash
 python widowx_envs/widowx_envs/run_data_collection.py widowx_envs/experiments/bridge_data_v2/conf.py
 ```
 
+**Specify a custom directory in the `docker-compose.yml`
+
 At this point, the data_collection script will start initializing, and then throw an error of:
 ```bash
 Device not found. Make sure that device is running and is connected over USB
@@ -81,6 +83,8 @@ ENV PYTHONPATH=${PYTHONPATH}:/home/robonet/code/bridge_data_v2
 WORKDIR /home/robonet/code/bridge_data_v2
 ```
 
+Clone the [bridge_data_v2](https://github.com/rail-berkeley/bridge_data_v2) in `bridge_data_robot/code`.
+
 First, we build the new image:
 
 ```bash
@@ -89,11 +93,11 @@ docker compose build bridge_data_v2
 
 Now, we can run commands in the container similar to the previous section, except we don't even need to have the container running in the background all the time!
 
-```
+```bash
 docker compose run bridge_data_v2 bash -lic "python experiments/something/eval_policy.py ..."
 ```
 
-Instead of executing a command in a running container, `docker compose run` spins up the container, executes the command, and then shuts down the container when the command finishes. Spinning the container up and down adds very little overhead. However, if you really want an interactive shell, you can again do `docker compose run bridge_data_v2 bash`.
+Instead of executing a command in a running container, `docker compose run ????` spins up the container, executes the command, and then shuts down the container when the command finishes. Spinning the container up and down adds very little overhead. However, if you really want an interactive shell, you can again do `docker compose run bridge_data_v2 bash`.
 
 
 ### Using RealSense cameras

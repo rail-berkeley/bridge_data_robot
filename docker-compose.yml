@@ -20,8 +20,8 @@ services:
       # if you want to be able to edit widowx_envs code without rebuilding the image, this
       # overwrites the widowx_envs directory that was copied in at build time
       - ./experiments:/home/robonet/experiments
-      # - /mount/harddrive/:/home/robonet/trainingdata  # TODO (YL): better way to mount a local directory
-      - $HOME/widowx_data:/home/robonet/trainingdata
+      - /mount/harddrive/:/home/robonet/trainingdata  # TODO (YL): better way to mount a local directory
+      # $HOME/widowx_data:/home/robonet/trainingdata
       - ./widowx_envs:/home/robonet/widowx_envs
       - /dev:/dev  # for host tty access
 
