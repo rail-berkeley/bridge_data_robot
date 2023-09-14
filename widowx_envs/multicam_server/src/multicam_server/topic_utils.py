@@ -1,74 +1,45 @@
+#!/usr/bin/env python3
+
 import cv2
+from pydantic import BaseModel
 
+class IMTopic(BaseModel):
+    """
+    Configuration for an image topic. User can also use json to create this object:
+        obj = IMTopic.model_validate_json(json_data)
+    """
+    name: str
+    width: int = 640
+    height: int = 480
+    top: int = 0
+    bot: int = 0
+    right: int = 0
+    left: int = 0
+    dtype: str = "bgr8"
+    flip: bool = False
+    info_name: str = None
 
-class IMTopic(object):
-    def __init__(self, name, height=480, width=640, top=0, bot=0, right=0, left=0, dtype="bgr8", flip=False, info_name=None):
-        self._name = name
-        self._width = width
-        self._top = top
-        self._bot = bot
-        self._right = right
-        self._left = left
-        self._dtype = dtype
-        self._height = height
-        self._flip = flip
-        self._info_name = info_name
+    def __init__(self, name, **data):
+        """For backwards compatibility, we allow user to pass in a string for name."""
+        super().__init__(name=name, **data)
 
     def process_image(self, img):
-        assert self._bot + self._top < img.shape[0], "Overcrop! bot + top crop >= image height!"
-        assert self._right + self._left < img.shape[1], "Overcrop! right + left crop >= image width!"
+        # Check for overcrop conditions
+        assert self.bot + self.top <= img.shape[0], "Overcrop! bot + top crop >= image height!"
+        assert self.right + self.left <= img.shape[1], "Overcrop! right + left crop >= image width!"
 
-        bot, right = self._bot, self._right
-        if self._bot <= 0:
-            bot = -(img.shape[0] + 10)
-        if self._right <= 0:
-            right = -(img.shape[1] + 10)
-        img = img[self._top:-bot, self._left:-right]
+        # If bot or right is negative, set to value that crops the entire image
+        bot = self.bot if self.bot > 0 else -(img.shape[0] + 10)
+        right = self.right if self.right > 0 else -(img.shape[1] + 10)
 
+        # Crop image
+        img = img[self.top:-bot, self.left:-right]
+
+        # Flip image if necessary
         if self.flip:
             img = img[::-1, ::-1]
 
+        # Resize image if necessary
         if (self.height, self.width) != img.shape[:2]:
             return cv2.resize(img, (self.width, self.height), interpolation=cv2.INTER_AREA)
         return img
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def width(self):
-        return self._width
-
-    @property
-    def top(self):
-        return self._top
-
-    @property
-    def bot(self):
-        return self._bot
-
-    @property
-    def right(self):
-        return self._right
-
-    @property
-    def left(self):
-        return self._left
-
-    @property
-    def dtype(self):
-        return self._dtype
-
-    @property
-    def height(self):
-        return self._height
-
-    @property
-    def flip(self):
-        return self._flip
-
-    @property
-    def info_name(self):
-        return self._info_name
-    
