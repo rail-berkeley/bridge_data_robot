@@ -6,7 +6,7 @@ import argparse
 import numpy as np
 from typing import Optional, Tuple, Any
 
-# from: https://github.com/youliangtan/edgeml
+# install from: https://github.com/youliangtan/edgeml
 from edgeml.interfaces import EdgeClient, EdgeServer, EdgeConfig
 
 ##############################################################################
@@ -28,7 +28,7 @@ class WidowXEdgeServer():
     this as a server, and we can have multiple clients connect to it and
     reveives the observation and control the widowx robot.
     """
-    def __init__(self, port: int = 5000, testing: bool = True):
+    def __init__(self, port: int = 5556, testing: bool = True):
         edgeml_config = DefaultEdgeConfig
         edgeml_config.port_number = port
 
@@ -61,7 +61,7 @@ class WidowXEdgeServer():
             if req_payload:
                 cam_imtopic = []
                 for cam in req_payload["camera_topics"]:
-                    imtopic_obj = IMTopic.model_validate_json(cam)
+                    imtopic_obj = IMTopic.model_validate(cam)
                     cam_imtopic.append(imtopic_obj)
                 req_payload["camera_topics"] = cam_imtopic
                 env_params = req_payload
@@ -90,7 +90,7 @@ class WidowXEdgeServer():
         if self.bridge_env:
             # we will default return image and proprio only
             obs = self.bridge_env.current_obs()
-            obs = {"image": obs["image"], "proprio": obs["proprio"]}
+            obs = {"image": obs["image"], "state": obs["state"]}
         else:
             # use dummy img with random noise
             img = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
@@ -101,9 +101,9 @@ class WidowXEdgeServer():
     def __gripper(self, open: float):
         if self.bridge_env:
             if open > 0.5: # convert to bool, for future float support
-                self.bridge_env.open_gripper()
+                self.bridge_env.controller().open_gripper()
             else:
-                self.bridge_env.close_gripper()
+                self.bridge_env.controller().close_gripper()
         else:
             print_red("WARNING: No bridge env not initialized.")
 
@@ -132,13 +132,11 @@ class WidowXEdgeServer():
 class WidowXClient():
     def __init__(self,
                  host: str = "localhost",
-                 port: int = 5000,
-                 env_params: dict = {}
+                 port: int = 5556,
                  ):
         edgeml_config = DefaultEdgeConfig
         edgeml_config.port_number = port
         self.__client = EdgeClient(host, edgeml_config)
-        self.init(env_params)
         print("Initialized widowx client.")
 
     def move(self, pose: np.ndarray, duration: float) -> bool:
@@ -147,33 +145,45 @@ class WidowXClient():
             :param pose: dim of 6, [x, y, z, roll, pitch, yaw]
         """
         assert len(pose) == 6
-        self.__client.act("move", {"pose": pose, "duration": duration})
+        if self.__client.act("move", {"pose": pose, "duration": duration}) is None:
+            return False
+        return True
 
-    def move_gripper(self, state: float):
+    def move_gripper(self, state: float) -> bool:
         """Open or close the gripper. 1.0 is open, 0.0 is closed."""
-        self.__client.act("gripper", {"open": state})
-    
-    def init(self, env_params: dict):
-        """Initialize the environment."""
-        self.__client.act("init", env_params)
+        if self.__client.act("gripper", {"open": state}) is None:
+            return False
+        return True
 
-    def reset(self):
+    def init(self, env_params: dict) -> bool:
+        """Initialize the environment."""
+        if self.__client.act("init", env_params) is None:
+            return False
+        return True
+
+    def reset(self) -> bool:
         """Reset the arm to the neutral position."""
-        self.__client.act("reset", {})
+        return False if self.__client.act("reset", {}) is None else True
 
     def get_observation(self) -> Optional[Tuple[np.ndarray, dict]]:
         """
         Get the current camera image and proprioceptive state.
-            :return Tuple of (image, proprio) or None if no observation is avail.
+            :return Tuple of (image, proprio state) or None if no observation is avail.
         """
         res = self.__client.obs()
-        return res["image"], res["proprio"] if res else None
-    
+        return (res["image"], res["state"]) if res else None
+
     def stop(self):
         """Stop the client."""
         self.__client.stop()
 
 ##############################################################################
+
+def show_img(img):
+    if img.shape[0] != 3:
+        img = (img.reshape(3, 128, 128).transpose(1, 2, 0) * 255).astype(np.uint8)
+    cv2.imshow("img", img)
+    cv2.waitKey(0)
 
 if __name__ == "__main__":
     # NOTE: This is just for Testing
@@ -182,11 +192,12 @@ if __name__ == "__main__":
     parser.add_argument('--client', action='store_true')
     parser.add_argument('--ip', type=str, default='localhost')
     parser.add_argument('--port', type=int, default=5556)
-    parser.add_argument('--show_video', action='store_true') # TODO
+    parser.add_argument('--show_video', action='store_true')  # TODO: implement this
+    parser.add_argument('--test', action='store_true')
     args = parser.parse_args()
 
     if args.server:
-        widowx_server = WidowXEdgeServer(port=args.port, testing=True)
+        widowx_server = WidowXEdgeServer(port=args.port, testing=args.test)
         widowx_server.start()
         widowx_server.stop()
 
@@ -206,20 +217,39 @@ if __name__ == "__main__":
             "return_full_image": False,
             "camera_topics": [{"name": "/D435/color/image_raw", "flip": True}],
         }
-        widowx_client = WidowXClient(host=args.ip, port=args.port, env_params=env_params)
+        widowx_client = WidowXClient(host=args.ip, port=args.port)
+        widowx_client.init(env_params)  # TODO: fix this, due to blocking call?
 
-        # Testing
-        time.sleep(1)
-        widowx_client.move(np.array([0.1, 0.1, 0.1, 0, 0, 0]), 0.2)
+        obs = None
+        while obs is None:
+            obs = widowx_client.get_observation()
+            time.sleep(1)
+            print("Waiting for robot to be ready...")
+
+        # close gripper
+        print("Closing gripper...")
         widowx_client.move_gripper(0.0)
-        time.sleep(1)
-        widowx_client.move_gripper(1.0)
-        time.sleep(1)
-
+        time.sleep(2.5)
         img, proprio = widowx_client.get_observation()
-        print(proprio)
-        cv2.imshow("img", img)
-        cv2.waitKey(0)
+        show_img(img)
+        # print(img.shape, proprio.shape)
+
+        # open gripper
+        print("Opening gripper...")
+        widowx_client.move_gripper(1.0)
+        time.sleep(2.5)
+        img, _ = widowx_client.get_observation()
+        show_img(img)
 
         widowx_client.stop()
-        print("Done.")
+        print("Done all")
+
+        ## TODO: fix this
+        # widowx_client.move(np.array([0.15, 0.1, 0.1, 0, 0, 0]), 0.2)
+        """
+        Error with move() call with move_to_eep():
+            self.bridge_env.controller().move_to_eep(self.get_tf_mat(pose))
+        File "/home/robonet/interbotix_ws/src/widowx_envs/widowx_controller/src/widowx_controller/widowx_controller.py", line 218, in move_to_eep
+            raise Environment_Exception
+        widowx_envs.utils.exceptions.Environment_Exception
+        """

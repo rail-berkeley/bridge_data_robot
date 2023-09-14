@@ -65,6 +65,7 @@ RUN source ~/myenv/bin/activate && pip install wheel && pip install -r /tmp/requ
 
 # add widowx_envs code for build step
 COPY . /home/${USER_ID}/widowx_envs
+COPY . /home/${USER_ID}/widowx_env
 RUN ln -s ~/widowx_envs ~/interbotix_ws/src/
 ENV PYTHONPATH="${PYTHONPATH}:/home/${USER_ID}/interbotix_ws/src/widowx_envs"
 
@@ -89,3 +90,8 @@ RUN echo 'source /opt/ros/noetic/setup.bash' >> ~/.bashrc
 RUN echo 'source ~/interbotix_ws/devel/setup.bash' >> ~/.bashrc
 
 WORKDIR /home/${USER_ID}
+
+# Clone and install the edgeml library
+RUN git clone https://github.com/youliangtan/edgeml && \
+    cd edgeml && \
+    pip3 install -e .
