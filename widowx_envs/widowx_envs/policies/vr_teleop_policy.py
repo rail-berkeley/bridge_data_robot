@@ -165,7 +165,7 @@ class VRTeleopPolicy(Policy):
         return new_robot_transform
 
     def oculus_to_robot(self, current_vr_transform):
-        current_vr_transform = tr.RpToTrans(Quaternion(axis=[0, 0, 1], angle=-np.pi / 2).rotation_matrix,
+        current_vr_transform = tr.RpToTrans(Quaternion(axis=[0, 0, 1], angle=np.pi / 2).rotation_matrix,
                                             np.zeros(3)).dot(
             tr.RpToTrans(Quaternion(axis=[1, 0, 0], angle=np.pi / 2).rotation_matrix, np.zeros(3))).dot(
             current_vr_transform)
