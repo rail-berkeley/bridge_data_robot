@@ -35,7 +35,6 @@ class RobotBaseEnv(BaseEnv):
     """   
     def __init__(self, env_params):
         self._hp = self._default_hparams()
-        self._read_global_defaults_config_file()
         self._override_defaults(env_params)
         self.savedir = None
         logging.info('initializing environment for {}'.format(self._hp.robot_name))
@@ -150,12 +149,6 @@ class RobotBaseEnv(BaseEnv):
         parent_params = super(RobotBaseEnv, self)._default_hparams()
         parent_params.update(default_dict)
         return parent_params
-
-    def _read_global_defaults_config_file(self):
-        global_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', 'global_config.yml')
-        if not os.path.exists(global_config_path):
-            open(global_config_path, 'w').close()
-        self._override_defaults(read_yaml_file(global_config_path))
 
     def _setup_robot(self):
         if self._hp.override_workspace_boundaries is not None:
