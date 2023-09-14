@@ -1,3 +1,5 @@
+#! /usr/bin/python3
+    
 from widowx_envs.policies.policy import Policy
 from widowx_envs.utils.utils import AttrDict
 from widowx_envs.control_loops import Environment_Exception
@@ -7,34 +9,9 @@ import numpy as np
 import time
 
 from pyquaternion import Quaternion
-from transformations import quaternion_from_matrix
+from widowx_controller.widowx_controller import publish_transform
 
-import rospy
-import tf2_ros
-import geometry_msgs.msg
-import random
-
-def publish_transform(transform, name):
-    translation = transform[:3, 3]
-
-    br = tf2_ros.TransformBroadcaster()
-    t = geometry_msgs.msg.TransformStamped()
-
-    t.header.stamp = rospy.Time.now()
-    t.header.frame_id = 'wx250s/base_link'
-    t.child_frame_id = name
-    t.transform.translation.x = translation[0]
-    t.transform.translation.y = translation[1]
-    t.transform.translation.z = translation[2]
-
-    quat = quaternion_from_matrix(transform)
-    t.transform.rotation.w = quat[0]
-    t.transform.rotation.x = quat[1]
-    t.transform.rotation.y = quat[2]
-    t.transform.rotation.z = quat[3]
-
-    # print('publish transofrm', name)
-    br.sendTransform(t)
+##############################################################################
 
 class VRTeleopPolicy(Policy):
     def __init__(self, ag_params, policyparams):
@@ -188,7 +165,7 @@ class VRTeleopPolicy(Policy):
         return new_robot_transform
 
     def oculus_to_robot(self, current_vr_transform):
-        current_vr_transform = tr.RpToTrans(Quaternion(axis=[0, 0, 1], angle=-np.pi / 2).rotation_matrix,
+        current_vr_transform = tr.RpToTrans(Quaternion(axis=[0, 0, 1], angle=np.pi / 2).rotation_matrix,
                                             np.zeros(3)).dot(
             tr.RpToTrans(Quaternion(axis=[1, 0, 0], angle=np.pi / 2).rotation_matrix, np.zeros(3))).dot(
             current_vr_transform)

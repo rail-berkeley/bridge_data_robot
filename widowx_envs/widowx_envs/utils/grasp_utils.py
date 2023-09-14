@@ -39,7 +39,7 @@ def get_image_obs(env, image_xyz=None, skip_move_to_neutral=False):
     else:
         env.move_to_state(image_xyz, target_zangle=0, duration=0.5)
     time.sleep(0.2)  # wait for camera to catch up
-    obs = env._get_obs()
+    obs = env.current_obs()
     env._controller.set_joint_angles(joint_angles, 0.5)
     return obs
 
