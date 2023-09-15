@@ -90,11 +90,15 @@ class WidowXEdgeServer():
         if self.bridge_env:
             # we will default return image and proprio only
             obs = self.bridge_env.current_obs()
-            obs = {"image": obs["image"], "state": obs["state"]}
+            obs = {
+                    "image": obs["image"],
+                    "state": obs["state"],
+                    "full_image": obs["full_image"][0]
+                  }
         else:
             # use dummy img with random noise
             img = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
-            obs = {"image": img, "proprio": {}}
+            obs = {"image": img, "state": {}, "full_image": img}
             print_red("WARNING: No bridge env not initialized.")
         return obs
 
@@ -119,8 +123,10 @@ class WidowXEdgeServer():
 
     def __reset(self):
         if self.bridge_env:
-            self.bridge_env.reset()
-            self.bridge_env.start()
+            self.bridge_env.controller().move_to_neutral(duration=1.0)
+            self.bridge_env.controller().open_gripper()
+            # self.bridge_env.reset()
+            # self.bridge_env.start()
         else:
             print_red("WARNING: No bridge env not initialized.")
 
@@ -166,13 +172,13 @@ class WidowXClient():
         """Reset the arm to the neutral position."""
         return False if self.__client.act("reset", {}) is None else True
 
-    def get_observation(self) -> Optional[Tuple[np.ndarray, dict]]:
+    def get_observation(self) -> Optional[dict]:
         """
         Get the current camera image and proprioceptive state.
-            :return Tuple of (image, proprio state) or None if no observation is avail.
+            :return a dict of observations
         """
         res = self.__client.obs()
-        return (res["image"], res["state"]) if res else None
+        return res if res else None
 
     def stop(self):
         """Stop the client."""
@@ -180,7 +186,7 @@ class WidowXClient():
 
 ##############################################################################
 
-def show_video(client, duration):
+def show_video(client, duration, full_image=True):
     """This shows the video from the camera for a given duration."""
     start = time.time()
     while (time.time() - start) < duration:
@@ -189,13 +195,16 @@ def show_video(client, duration):
             print("No observation available... waiting")
             continue
 
-        img, proprio = res
-        if img.shape[0] != 3:
+        if full_image:
+            img = res["full_image"]
+        else:
+            img = res["image"]       
+            # if img.shape[0] != 3:  # sanity check to make sure it's not flattened
             img = (img.reshape(3, 128, 128).transpose(1, 2, 0) * 255).astype(np.uint8)
         cv2.imshow("img", img)
         cv2.waitKey(100)  # 100 ms
 
-if __name__ == "__main__":
+def main():
     # NOTE: This is just for Testing
     parser = argparse.ArgumentParser()
     parser.add_argument('--server', action='store_true')
@@ -228,10 +237,12 @@ if __name__ == "__main__":
             "camera_topics": [{"name": "/D435/color/image_raw", "flip": True}],
         }
         widowx_client = WidowXClient(host=args.ip, port=args.port)
-        
+
         if not args.dont_init:
             # NOTE: this normally takes 10 seconds to reset
             widowx_client.init(env_params)
+        else:
+            widowx_client.reset()
 
         # This ensures that the robot is ready to be controlled
         obs = None
@@ -265,3 +276,6 @@ if __name__ == "__main__":
 
         widowx_client.stop()
         print("Done all")
+
+if __name__ == '__main__':
+    main()

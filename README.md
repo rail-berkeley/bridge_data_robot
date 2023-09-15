@@ -91,7 +91,7 @@ First, we build the new image:
 docker compose build bridge_data_v2
 ```
 
-Now, we can run commands in the container similar to the previous section, except we don't even need to have the container running in the background all the time!
+Now, we can run commands in the container similar to the previous section, except we don't even need to have the container running in the background all the time! Note: make sure `robotnet` compose is running.
 
 ```bash
 docker compose run bridge_data_v2 bash -lic "python experiments/something/eval_policy.py ..."
@@ -109,10 +109,17 @@ You will also need to update the device IDs in `widowx_envs/widowx_controller/la
 ## Advance mode, use server-client api to control widowx
 
 ```bash
-docker compose exec robonet bash -lic "python3 widowx_envs/widowx_env_service.py --server"
+docker compose exec robonet bash -lic "widowx_env_service --server"
 ```
 
+## Client side setup
+
 Run the client on the same machine, or a different machine. This requires the installation of [edgeml](https://github.com/youliangtan/edgeml) lib.
+
+```bash
+cd widowx_envs
+pip3 install -e .
+```
 
 ```bash
 # use `--ip`` for remote access the server

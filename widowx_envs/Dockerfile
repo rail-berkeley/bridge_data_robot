@@ -94,3 +94,7 @@ WORKDIR /home/${USER_ID}
 RUN git clone https://github.com/youliangtan/edgeml && \
     cd edgeml && \
     pip3 install -e .
+
+# Create alias to python3 widowx_envs/widowx_envs/widowx_env_service.py
+# This is a workaround for pip3 install -e .
+RUN echo 'alias widowx_env_service="python3 ~/widowx_envs/widowx_envs/widowx_env_service.py"' >> ~/.bashrc
