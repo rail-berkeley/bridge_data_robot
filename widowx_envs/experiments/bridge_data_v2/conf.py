@@ -29,7 +29,7 @@ agent = {
     'type': TimedLoop,
     'env': (VR_WidowX, env_params),
     'recreate_env': (False, 1),
-    'T': 50,
+    'T': 70,
     'image_height': 480,
     'image_width': 640,
     'make_final_gif': False,

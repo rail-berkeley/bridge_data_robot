@@ -254,6 +254,9 @@ class RobotBaseEnv(BaseEnv):
         if self._hp.resetqpos_after_every_step:
             self._reset_previous_qpos()  # this can cause accumulating errors
         time.sleep(self._hp.wait_time)
+        
+        if tstamp_return_obs is None:
+            return self.current_obs() # or None?
 
         if self._hp.adaptive_wait:
             t1 = time.time()

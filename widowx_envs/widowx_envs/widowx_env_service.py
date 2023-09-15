@@ -11,11 +11,28 @@ from edgeml.interfaces import EdgeClient, EdgeServer, EdgeConfig
 
 ##############################################################################
 
-DefaultEdgeConfig = EdgeConfig(
-        port_number = 5566,
-        action_keys = ["init", "move", "gripper", "reset"],
+class WidowXConfigs:
+    DefaultEnvParams = {
+        "fix_zangle": 0.1,
+        "move_duration": 0.2,
+        "adaptive_wait": True,
+        "move_to_rand_start_freq": 1,
+        "override_workspace_boundaries": [
+            [0.1, -0.15, -0.1, -1.57, 0],
+            [0.45, 0.25, 0.18, 1.57, 0],
+        ],
+        "action_clipping": "xyz",
+        "catch_environment_except": False,
+        "start_state": None,
+        "return_full_image": False,
+        "camera_topics": [{"name": "/D435/color/image_raw", "flip": True}],
+    }
+
+    DefaultEdgeConfig = EdgeConfig(
+        port_number = 5556,
+        action_keys = ["init", "move", "gripper", "reset", "step_action"],
         observation_keys = ["image", "proprio"],
-        broadcast_port= 5566 + 1,
+        broadcast_port= 5556 + 1,
     )
 
 print_red = lambda x: print("\033[91m{}\033[00m".format(x))
@@ -29,8 +46,9 @@ class WidowXEdgeServer():
     reveives the observation and control the widowx robot.
     """
     def __init__(self, port: int = 5556, testing: bool = True):
-        edgeml_config = DefaultEdgeConfig
+        edgeml_config = WidowXConfigs.DefaultEdgeConfig
         edgeml_config.port_number = port
+        edgeml_config.broadcast_port = port + 1
 
         self.testing = testing
         self.bridge_env = None
@@ -82,6 +100,8 @@ class WidowXEdgeServer():
             self.__gripper(req_payload["open"])
         elif type == "move":
             self.__move(req_payload["pose"], req_payload["duration"])
+        elif type == "step_action":
+            self.__step_action(req_payload["action"])
         elif type == "reset":
             self.__reset()
         return {}
@@ -111,22 +131,28 @@ class WidowXEdgeServer():
         else:
             print_red("WARNING: No bridge env not initialized.")
 
-    def __move(self, pose: np.ndarray, duration: float) -> bool:
+    def __move(self, pose: np.ndarray, duration: float):
         if self.bridge_env:
-            # TODO: test this! Is better to use the controller
-            # to move directly to the pose, instead of the gym api
-            # self.bridge_env.step(pose)
-            self.bridge_env.controller().move_to_eep(
-                self.get_tf_mat(pose), blocking=False)
+            if pose.shape == (4, 4):
+                eep = pose
+            else:
+                eep = self.get_tf_mat(pose)
+            self.bridge_env.controller().move_to_eep(eep, blocking=False)
+        else:
+            print_red("WARNING: No bridge env not initialized.")
+
+    def __step_action(self, action: np.ndarray, ):
+        if self.bridge_env:
+            self.bridge_env.step(action, )
         else:
             print_red("WARNING: No bridge env not initialized.")
 
     def __reset(self):
         if self.bridge_env:
-            self.bridge_env.controller().move_to_neutral(duration=1.0)
-            self.bridge_env.controller().open_gripper()
-            # self.bridge_env.reset()
-            # self.bridge_env.start()
+            # self.bridge_env.controller().move_to_neutral(duration=1.0)
+            # self.bridge_env.controller().open_gripper()
+            self.bridge_env.reset()
+            self.bridge_env.start()
         else:
             print_red("WARNING: No bridge env not initialized.")
 
@@ -141,17 +167,20 @@ class WidowXClient():
                  host: str = "localhost",
                  port: int = 5556,
                  ):
-        edgeml_config = DefaultEdgeConfig
+        edgeml_config = WidowXConfigs.DefaultEdgeConfig
         edgeml_config.port_number = port
+        edgeml_config.broadcast_port = port + 1
         self.__client = EdgeClient(host, edgeml_config)
         print("Initialized widowx client.")
 
-    def move(self, pose: np.ndarray, duration: float) -> bool:
+    def move(self, pose: np.ndarray, duration: float = 0.0) -> bool:
         """
         Command the arm to move to a given pose in space.
-            :param pose: dim of 6, [x, y, z, roll, pitch, yaw]
+            :param pose: dim of 6, [x, y, z, roll, pitch, yaw] or
+                         a 4x4 tf matrix
+            :param duration: time to move to the pose. Not implemented
         """
-        assert len(pose) == 6
+        assert len(pose) == 6 or pose.shape == (4, 4), "invalid pose shape"
         if self.__client.act("move", {"pose": pose, "duration": duration}) is None:
             return False
         return True
@@ -159,6 +188,16 @@ class WidowXClient():
     def move_gripper(self, state: float) -> bool:
         """Open or close the gripper. 1.0 is open, 0.0 is closed."""
         if self.__client.act("gripper", {"open": state}) is None:
+            return False
+        return True
+
+    def step_action(self, action: np.ndarray) -> bool:
+        """
+        Step the action. size of 5 (3trans) or 7 (3trans1rot)
+        This is an unstable API, use at your own risk.
+        """
+        assert len(action) in [5, 7], "invalid action shape"
+        if self.__client.act("step_action", {"action": action}) is None:
             return False
         return True
 
@@ -221,26 +260,11 @@ def main():
         widowx_server.stop()
 
     if args.client:
-        env_params = {
-            "fix_zangle": 0.1,
-            "move_duration": 0.2,
-            "adaptive_wait": True,
-            "move_to_rand_start_freq": 1,
-            "override_workspace_boundaries": [
-                [0.1, -0.15, -0.1, -1.57, 0],
-                [0.45, 0.25, 0.18, 1.57, 0],
-            ],
-            "action_clipping": "xyz",
-            "catch_environment_except": False,
-            "start_state": None,
-            "return_full_image": False,
-            "camera_topics": [{"name": "/D435/color/image_raw", "flip": True}],
-        }
         widowx_client = WidowXClient(host=args.ip, port=args.port)
 
         if not args.dont_init:
             # NOTE: this normally takes 10 seconds to reset
-            widowx_client.init(env_params)
+            widowx_client.init(WidowXConfigs.DefaultEnvParams)
         else:
             widowx_client.reset()
 
@@ -257,7 +281,7 @@ def main():
         #  - z: up
         
         # move left up
-        widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 1.57, 0]), 0.2)
+        widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 1.57, 1.57]), 0.2)
         show_video(widowx_client, 1.5)
 
         # close gripper
