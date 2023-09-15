@@ -112,10 +112,10 @@ You will also need to update the device IDs in `widowx_envs/widowx_controller/la
 docker compose exec robonet bash -lic "python3 widowx_envs/widowx_env_service.py --server"
 ```
 
-Run the client on the same machine, or a different machine
+Run the client on the same machine, or a different machine. This requires the installation of [edgeml](https://github.com/youliangtan/edgeml) lib.
 
 ```bash
-# use `--ip`` for remote
+# use `--ip`` for remote access the server
 python3 widowx_envs/widowx_env_service.py --client
 ```
 

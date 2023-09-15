@@ -265,13 +265,3 @@ if __name__ == "__main__":
 
         widowx_client.stop()
         print("Done all")
-
-        ## TODO: fix this
-        # widowx_client.move(np.array([0.15, 0.1, 0.1, 0, 0, 0]), 0.2)
-        """
-        Error with move() call with move_to_eep():
-            self.bridge_env.controller().move_to_eep(self.get_tf_mat(pose))
-        File "/home/robonet/interbotix_ws/src/widowx_envs/widowx_controller/src/widowx_controller/widowx_controller.py", line 218, in move_to_eep
-            raise Environment_Exception
-        widowx_envs.utils.exceptions.Environment_Exception
-        """
