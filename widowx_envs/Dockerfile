@@ -65,7 +65,6 @@ RUN source ~/myenv/bin/activate && pip install wheel && pip install -r /tmp/requ
 
 # add widowx_envs code for build step
 COPY . /home/${USER_ID}/widowx_envs
-COPY . /home/${USER_ID}/widowx_env
 RUN ln -s ~/widowx_envs ~/interbotix_ws/src/
 ENV PYTHONPATH="${PYTHONPATH}:/home/${USER_ID}/interbotix_ws/src/widowx_envs"
 

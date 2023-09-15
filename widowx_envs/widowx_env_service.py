@@ -112,7 +112,8 @@ class WidowXEdgeServer():
             # TODO: test this! Is better to use the controller
             # to move directly to the pose, instead of the gym api
             # self.bridge_env.step(pose)
-            self.bridge_env.controller().move_to_eep(self.get_tf_mat(pose))
+            self.bridge_env.controller().move_to_eep(
+                self.get_tf_mat(pose), blocking=False)
         else:
             print_red("WARNING: No bridge env not initialized.")
 
@@ -179,11 +180,20 @@ class WidowXClient():
 
 ##############################################################################
 
-def show_img(img):
-    if img.shape[0] != 3:
-        img = (img.reshape(3, 128, 128).transpose(1, 2, 0) * 255).astype(np.uint8)
-    cv2.imshow("img", img)
-    cv2.waitKey(0)
+def show_video(client, duration):
+    """This shows the video from the camera for a given duration."""
+    start = time.time()
+    while (time.time() - start) < duration:
+        res = client.get_observation()
+        if res is None:
+            print("No observation available... waiting")
+            continue
+
+        img, proprio = res
+        if img.shape[0] != 3:
+            img = (img.reshape(3, 128, 128).transpose(1, 2, 0) * 255).astype(np.uint8)
+        cv2.imshow("img", img)
+        cv2.waitKey(100)  # 100 ms
 
 if __name__ == "__main__":
     # NOTE: This is just for Testing
@@ -192,8 +202,8 @@ if __name__ == "__main__":
     parser.add_argument('--client', action='store_true')
     parser.add_argument('--ip', type=str, default='localhost')
     parser.add_argument('--port', type=int, default=5556)
-    parser.add_argument('--show_video', action='store_true')  # TODO: implement this
     parser.add_argument('--test', action='store_true')
+    parser.add_argument('--dont_init', action='store_true')
     args = parser.parse_args()
 
     if args.server:
@@ -218,28 +228,40 @@ if __name__ == "__main__":
             "camera_topics": [{"name": "/D435/color/image_raw", "flip": True}],
         }
         widowx_client = WidowXClient(host=args.ip, port=args.port)
-        widowx_client.init(env_params)  # TODO: fix this, due to blocking call?
+        
+        if not args.dont_init:
+            # NOTE: this normally takes 10 seconds to reset
+            widowx_client.init(env_params)
 
+        # This ensures that the robot is ready to be controlled
         obs = None
         while obs is None:
             obs = widowx_client.get_observation()
             time.sleep(1)
             print("Waiting for robot to be ready...")
 
+        # Coordinate Convention:
+        #  - x: forward
+        #  - y: left
+        #  - z: up
+        
+        # move left up
+        widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 1.57, 0]), 0.2)
+        show_video(widowx_client, 1.5)
+
         # close gripper
         print("Closing gripper...")
         widowx_client.move_gripper(0.0)
-        time.sleep(2.5)
-        img, proprio = widowx_client.get_observation()
-        show_img(img)
-        # print(img.shape, proprio.shape)
+        show_video(widowx_client, 2.5)
+
+        # move right down
+        widowx_client.move(np.array([0.2, -0.1, 0.1, 0, 1.57, 0]), 0.2)
+        show_video(widowx_client, 1.5)
 
         # open gripper
         print("Opening gripper...")
         widowx_client.move_gripper(1.0)
-        time.sleep(2.5)
-        img, _ = widowx_client.get_observation()
-        show_img(img)
+        show_video(widowx_client, 2.5)
 
         widowx_client.stop()
         print("Done all")

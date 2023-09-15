@@ -97,7 +97,7 @@ Now, we can run commands in the container similar to the previous section, excep
 docker compose run bridge_data_v2 bash -lic "python experiments/something/eval_policy.py ..."
 ```
 
-Instead of executing a command in a running container, `docker compose run ????` spins up the container, executes the command, and then shuts down the container when the command finishes. Spinning the container up and down adds very little overhead. However, if you really want an interactive shell, you can again do `docker compose run bridge_data_v2 bash`.
+To run in the docker env with an interactive shell, you can again do `docker compose run bridge_data_v2 bash`.
 
 
 ### Using RealSense cameras
@@ -105,6 +105,19 @@ Instead of executing a command in a running container, `docker compose run ????`
 The RealSense cameras require different drivers than RGB cameras.  If you are using RealSenses, change the `camera_string` in `scripts/run.sh` to `realsense:=true`.
 
 You will also need to update the device IDs in `widowx_envs/widowx_controller/launch/widowx_rs.launch` to match your cameras.
+
+## Advance mode, use server-client api to control widowx
+
+```bash
+docker compose exec robonet bash -lic "python3 widowx_envs/widowx_env_service.py --server"
+```
+
+Run the client on the same machine, or a different machine
+
+```bash
+# use `--ip`` for remote
+python3 widowx_envs/widowx_env_service.py --client
+```
 
 ## Troubleshooting
 
