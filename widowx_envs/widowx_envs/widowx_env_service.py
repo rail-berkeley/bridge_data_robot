@@ -7,7 +7,7 @@ import numpy as np
 from typing import Optional, Tuple, Any
 
 # install from: https://github.com/youliangtan/edgeml
-from edgeml.interfaces import EdgeClient, EdgeServer, EdgeConfig
+from edgeml.interfaces import ActorClient, ActorServer, ActorConfig
 
 ##############################################################################
 
@@ -28,7 +28,7 @@ class WidowXConfigs:
         "camera_topics": [{"name": "/D435/color/image_raw", "flip": True}],
     }
 
-    DefaultEdgeConfig = EdgeConfig(
+    DefaultActorConfig = ActorConfig(
         port_number = 5556,
         action_keys = ["init", "move", "gripper", "reset", "step_action"],
         observation_keys = ["image", "proprio"],
@@ -39,20 +39,20 @@ print_red = lambda x: print("\033[91m{}\033[00m".format(x))
 
 ##############################################################################
 
-class WidowXEdgeServer():
+class WidowXActorServer():
     """
     This is the highest level abstraction of the widowx setup. We will run
     this as a server, and we can have multiple clients connect to it and
     reveives the observation and control the widowx robot.
     """
     def __init__(self, port: int = 5556, testing: bool = True):
-        edgeml_config = WidowXConfigs.DefaultEdgeConfig
+        edgeml_config = WidowXConfigs.DefaultActorConfig
         edgeml_config.port_number = port
         edgeml_config.broadcast_port = port + 1
 
         self.testing = testing
         self.bridge_env = None
-        self.__server = EdgeServer(edgeml_config,
+        self.__server = ActorServer(edgeml_config,
                                    obs_callback=self.__observe,
                                    act_callback=self.__action)
 
@@ -167,10 +167,10 @@ class WidowXClient():
                  host: str = "localhost",
                  port: int = 5556,
                  ):
-        edgeml_config = WidowXConfigs.DefaultEdgeConfig
+        edgeml_config = WidowXConfigs.DefaultActorConfig
         edgeml_config.port_number = port
         edgeml_config.broadcast_port = port + 1
-        self.__client = EdgeClient(host, edgeml_config)
+        self.__client = ActorClient(host, edgeml_config)
         print("Initialized widowx client.")
 
     def move(self, pose: np.ndarray, duration: float = 0.0) -> bool:
@@ -255,7 +255,7 @@ def main():
     args = parser.parse_args()
 
     if args.server:
-        widowx_server = WidowXEdgeServer(port=args.port, testing=args.test)
+        widowx_server = WidowXActorServer(port=args.port, testing=args.test)
         widowx_server.start()
         widowx_server.stop()
 
