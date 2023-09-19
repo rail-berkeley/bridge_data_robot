@@ -114,7 +114,7 @@ class RobotBaseEnv(BaseEnv):
         """Public method to access the controller"""
         if self._controller is None:
             raise NotImplementedError('controller not implemented')
-        self._reset_previous_qpos()  # TODO (YL) check if this is necessary
+        # self._reset_previous_qpos()  # TODO (YL) check if this is necessary
         return self._controller
 
     def _default_hparams(self):

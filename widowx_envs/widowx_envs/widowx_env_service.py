@@ -5,6 +5,7 @@ import cv2
 import argparse
 import numpy as np
 from typing import Optional, Tuple, Any
+from widowx_envs.utils.exceptions import Environment_Exception
 
 # install from: https://github.com/youliangtan/edgeml
 from edgeml.interfaces import ActorClient, ActorServer, ActorConfig
@@ -68,6 +69,10 @@ class WidowXActorServer():
                 print_red("WARNING: Running in testing mode, \
                     no env will be initialized.")
                 return {}
+            
+            if self.bridge_env:
+                print_red("env already initialized")
+                return {}
 
             from widowx_envs.widowx_env import BridgeDataRailRLPrivateWidowX
             from multicam_server.topic_utils import IMTopic
@@ -92,8 +97,9 @@ class WidowXActorServer():
                 return tf_mat
             
             self.get_tf_mat = get_tf_mat
+            # TODO: make image size configurable
             self.bridge_env = BridgeDataRailRLPrivateWidowX(
-                env_params, fixed_image_size=128)
+                env_params, fixed_image_size=256)
             print("Initialized bridge env.")
 
         elif type == "gripper":
@@ -137,13 +143,20 @@ class WidowXActorServer():
                 eep = pose
             else:
                 eep = self.get_tf_mat(pose)
-            self.bridge_env.controller().move_to_eep(eep, blocking=False)
+
+            while True:
+                try:
+                    self.bridge_env.controller().move_to_eep(eep, blocking=True, duration=duration)
+                    self.bridge_env._reset_previous_qpos()
+                    break
+                except Environment_Exception as e: # TODO: return false if it isnt working
+                    print(e)
         else:
             print_red("WARNING: No bridge env not initialized.")
 
     def __step_action(self, action: np.ndarray, ):
         if self.bridge_env:
-            self.bridge_env.step(action, )
+            self.bridge_env.step(action)
         else:
             print_red("WARNING: No bridge env not initialized.")
 
@@ -173,7 +186,7 @@ class WidowXClient():
         self.__client = ActorClient(host, edgeml_config)
         print("Initialized widowx client.")
 
-    def move(self, pose: np.ndarray, duration: float = 0.0) -> bool:
+    def move(self, pose: np.ndarray, duration: float = 1.0) -> bool:
         """
         Command the arm to move to a given pose in space.
             :param pose: dim of 6, [x, y, z, roll, pitch, yaw] or
@@ -239,7 +252,7 @@ def show_video(client, duration, full_image=True):
         else:
             img = res["image"]       
             # if img.shape[0] != 3:  # sanity check to make sure it's not flattened
-            img = (img.reshape(3, 128, 128).transpose(1, 2, 0) * 255).astype(np.uint8)
+            img = (img.reshape(3, 256, 256).transpose(1, 2, 0) * 255).astype(np.uint8)
         cv2.imshow("img", img)
         cv2.waitKey(100)  # 100 ms
 
