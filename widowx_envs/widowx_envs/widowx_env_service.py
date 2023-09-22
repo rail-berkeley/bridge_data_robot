@@ -160,7 +160,7 @@ class WidowXActionServer():
             eep = self.get_tf_mat(pose)
         try:
             self.bridge_env.controller().move_to_eep(
-                eep, blocking=blocking, duration=duration)
+                eep, duration=duration, blocking=blocking)
             self.bridge_env._reset_previous_qpos()
         except Environment_Exception as e:
             print_red("Move execution error: {}".format(e))
@@ -229,14 +229,14 @@ class WidowXClient():
     def move(self,
              pose: np.ndarray,
              duration: float = 1.0,
-             blocking: bool = True,
+             blocking: bool = False,
             ) -> WidowXStatus:
         """
         Command the arm to move to a given pose in space.
             :param pose: dim of 6, [x, y, z, roll, pitch, yaw] or
                          a 4x4 tf matrix
             :param duration: time to move to the pose. Not implemented
-            :param blocking: whether to block until the move is done
+            :param blocking: whether to block the server until the move is done
         """
         assert len(pose) == 6 or pose.shape == (4, 4), "invalid pose shape"
         _payload = {"pose": pose, "duration": duration, "blocking": blocking}
@@ -328,26 +328,26 @@ def main():
         #  - z: up
 
         # move left up
-        res = widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 1.57, 1.57]), 0.2, blocking=False)
+        res = widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 1.57, 1.57]))
         assert args.test or res == WidowXStatus.SUCCESS, "move failed"
-        show_video(widowx_client, 1.5)
+        show_video(widowx_client, duration=1.5)
 
         # close gripper
         print("Closing gripper...")
         res = widowx_client.move_gripper(0.0)
         assert args.test or res == WidowXStatus.SUCCESS, "gripper failed"
-        show_video(widowx_client, 2.5)
+        show_video(widowx_client, duration=2.5)
 
         # move right down
-        res = widowx_client.move(np.array([0.2, -0.1, 0.1, 0, 1.57, 0]), 0.2, blocking=False)
+        res = widowx_client.move(np.array([0.2, -0.1, 0.1, 0, 1.57, 0]))
         assert args.test or res == WidowXStatus.SUCCESS, "move failed"
-        show_video(widowx_client, 1.5)
+        show_video(widowx_client, duration=1.5)
 
         # open gripper
         print("Opening gripper...")
         res = widowx_client.move_gripper(1.0)
         assert args.test or res == WidowXStatus.SUCCESS, "gripper failed"
-        show_video(widowx_client, 2.5)
+        show_video(widowx_client, duration=2.5)
 
         widowx_client.stop()
         print("Done all")
