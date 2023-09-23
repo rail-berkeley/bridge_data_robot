@@ -68,6 +68,7 @@ COPY . /home/${USER_ID}/widowx_envs
 COPY . /home/${USER_ID}/widowx_env
 RUN ln -s ~/widowx_envs ~/interbotix_ws/src/
 ENV PYTHONPATH="${PYTHONPATH}:/home/${USER_ID}/interbotix_ws/src/widowx_envs"
+ENV PYTHONPATH="${PYTHONPATH}:/home/${USER_ID}/interbotix_ws/src/multicam_server"
 
 ENV ROBONETV2_ARM=wx250s
 ENV DATA=/home/robonet/trainingdata
