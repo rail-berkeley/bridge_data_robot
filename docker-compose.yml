@@ -40,3 +40,36 @@ services:
       - ./code/bridge_data_v2:/home/robonet/code/bridge_data_v2
       - ./experiments:/home/robonet/experiments
       - /mount/harddrive/:/home/robonet/trainingdata
+
+  jaxrl_minimal:
+    image: robonet-jaxrl-min
+    container_name: robonet_${USER}_jaxrl_min
+    user: robonet:1002
+    build:
+      context: code/jaxrl_minimal
+    network_mode: host
+    environment:
+      - WANDB_API_KEY=putwandbkeyhere
+    runtime: nvidia
+    volumes:
+      - ./widowx_envs:/home/robonet/widowx_envs 
+      - ./code/jaxrl_minimal:/home/robonet/code/jaxrl_minimal
+      - ./code/denoising-diffusion-flax:/home/robonet/code/denoising-diffusion-flax
+      - ./experiments:/home/robonet/experiments
+      - /mount/harddrive/:/home/robonet/trainingdata
+
+  orca:
+    image: robonet-orca
+    container_name: robonet_${USER}_orca
+    user: robonet:1002
+    build:
+      context: code/orca
+    network_mode: host
+    environment:
+      - WANDB_API_KEY=putwandbkeyhere
+    runtime: nvidia
+    volumes:
+      - ./widowx_envs:/home/robonet/widowx_envs 
+      - ./code/orca:/home/robonet/code/orca
+      - ./experiments:/home/robonet/experiments
+      - /mount/harddrive/:/home/robonet/trainingdata
