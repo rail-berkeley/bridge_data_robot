@@ -71,6 +71,5 @@ services:
     volumes:
       - ./widowx_envs:/home/robonet/widowx_envs 
       - ./code/orca:/home/robonet/code/orca
-      - ./code/roboverse:/home/robonet/code/roboverse
       - ./experiments:/home/robonet/experiments
       - /mount/harddrive/:/home/robonet/trainingdata
