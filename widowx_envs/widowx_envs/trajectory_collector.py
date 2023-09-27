@@ -13,25 +13,29 @@ class TrajectoryCollector(Configurable):
     def __init__(self, config, gpu_id=0, ngpu=1):
         self._hp = self._default_hparams()
         self._override_defaults(config)
-        if self._hp.log_dir is not "":
+        if self._hp.log_dir != '':
             self._hp.agent['log_dir'] = self._hp.log_dir
         self.agent = self._hp.agent['type'](self._hp.agent)
         self.agent._hp.env_handle = self.agent.env
         self.agent._hp.gpu_id = gpu_id
         self.agent._hp.ngpu = ngpu
 
-        if isinstance(self._hp.policy, list): # in case multiple policies are used
+        if isinstance(self._hp.policy, list):
+            # in case multiple policies are used
             self.policies = []
             for policy_param in self._hp.policy:
-                self.policies.append(policy_param['type'](self.agent._hp, policy_param))
+                self.policies.append(
+                    policy_param['type'](self.agent._hp, policy_param))
         else:
-            self.policies = [self._hp.policy['type'](self.agent._hp, self._hp.policy)]
+            self.policies = [
+                self._hp.policy['type'](self.agent._hp, self._hp.policy)
+            ]
 
         self.trajectory_list = []
         self.im_score_list = []
         try:
             os.remove(self._hp.agent['image_dir'])
-        except:
+        except Exception:
             pass
 
         self.savers = {}
@@ -40,7 +44,6 @@ class TrajectoryCollector(Configurable):
 
         if 'raw' in self._hp.save_format:
             self.savers['raw'] = RawSaver(self._hp.data_save_dir)
-
 
     def _default_hparams(self):
         default_dict = AttrDict({
@@ -64,7 +67,7 @@ class TrajectoryCollector(Configurable):
         return default_dict
 
     def run(self):
-        for i in range(self._hp.start_index, self._hp.end_index+1):
+        for i in range(self._hp.start_index, self._hp.end_index + 1):
             for policy in self.policies:
                 self.take_sample(i, policy)
 
@@ -82,7 +85,12 @@ class TrajectoryCollector(Configurable):
 
     @timed('savingtime: ')
     def save_data(self, itr, agent_data, obs_dict, policy_outputs):
-        for name, saver in self.savers.items(): # if directly saving data
+
+        if self._hp['save_language'] and agent_data['traj_ok'] and obs_dict is not None:  # NOQA
+            language = input('Type the language description of the collected trajectory: ')  # NOQA
+            obs_dict['language'] = [language] * len(obs_dict['images'])
+
+        for name, saver in self.savers.items():  # if directly saving data
             saver.save_traj(itr, agent_data, obs_dict, policy_outputs)
 
     def make_diagnostics(self, obs):
@@ -96,7 +104,7 @@ class TrajectoryCollector(Configurable):
         xpos = obs['state'][:, 0]
         des_xpos = obs['desired_state'][:, 0]
 
-        images = obs['images'].astype(np.float32)/255
+        images = obs['images'].astype(np.float32) / 255
         image_delta = np.abs(images[1:][:, 0] - images[:-1][:, 0])
         tlen = image_delta.shape[0]
         image_delta = np.mean(image_delta.reshape(tlen, -1), axis=1)
@@ -108,11 +116,10 @@ class TrajectoryCollector(Configurable):
         ax = plt.gca()
         ax.plot(xpos, label='xpos')
         plt.plot(des_xpos, label='despos')
-        xvalues = range(1, 1+ image_delta.shape[0])
+        xvalues = range(1, 1 + image_delta.shape[0])
         plt.plot(xvalues, image_delta, label='image_delta')
         ax.legend()
         plt.grid()
         print('saving figure', self._hp.data_save_dir + '/diagnostics.png')
         plt.savefig(self._hp.data_save_dir + '/diagnostics.png')
         # import pdb; pdb.set_trace()
-

@@ -99,6 +99,7 @@ class BlockingLoop(Configurable):
             try:
                 agent_data, obs_dict, policy_outs = self.rollout(policy, i_trial, i_traj)
                 traj_ok = agent_data['traj_ok']
+
                 if self._hp.make_partial_gif:
                     self.save_gif(i_traj)
 
@@ -403,7 +404,7 @@ class TimedLoop(BlockingLoop):
         policy.reset()
         initial_env_obs = self.reset_env(i_traj)
         obs = self._post_process_obs(initial_env_obs, agent_data, True)
-        
+
 
         self.traj_log_dir = self._hp.log_dir + '/verbose/traj{}'.format(i_traj)
         if not os.path.exists(self.traj_log_dir):
@@ -430,13 +431,17 @@ class TimedLoop(BlockingLoop):
                     print('###########################')
                     print('Warning, loop takes too long: {}s!!!'.format(time.time() - last_tstep))
                     print('###########################')
-                print('loop  {}s'.format(time.time() - last_tstep))
+                # print('loop  {}s'.format(time.time() - last_tstep))
                 last_tstep = time.time()
 
 
 
                 print('tstep', self._cache_cntr - 1)
                 pi_t = policy.act(**get_policy_args(policy, obs, self._cache_cntr - 1, i_traj, agent_data))
+
+                # TODO
+                if np.all(pi_t['actions'][:-1] == 0):
+                    continue
 
                 if 'done' in pi_t:
                     done = pi_t['done']
@@ -472,4 +477,17 @@ class TimedLoop(BlockingLoop):
             agent_data['depth_camera_info'] = self.env.depth_camera_info
 
         self._required_rollout_metadata(agent_data, self._cache_cntr, traj_ok)
+        return agent_data, obs, policy_outputs
+
+
+class LanguageTimedLoop(TimedLoop):
+
+    def rollout(self, policy, i_trial, i_traj):
+        agent_data, obs, policy_outputs = super(
+            LanguageTimedLoop, self).rollout(policy, i_trial, i_traj)
+
+        if agent_data['traj_ok'] and obs is not None:
+            language = input('Type the language description of the collected trajectory: ')  # NOQA
+            obs['language'] = [language] * len(obs['images'])
+
         return agent_data, obs, policy_outputs

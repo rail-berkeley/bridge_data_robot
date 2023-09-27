@@ -7,15 +7,20 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 from multicam_server.topic_utils import IMTopic
 from widowx_envs.widowx_env import VR_WidowX
 from widowx_envs.control_loops import TimedLoop
+from widowx_envs.control_loops import LanguageTimedLoop
 from widowx_envs.policies.vr_teleop_policy import VRTeleopPolicy
 
 env_params = {
-    'camera_topics': [IMTopic('/D435/color/image_raw'),
-                      #IMTopic('/yellow/image_raw'),
-                      #IMTopic('/blue/image_raw'),
-                      #IMTopic('/wrist/image_raw')
-                      ],
-    'depth_camera_topics': [IMTopic('/D435/depth/image_rect_raw', dtype='16UC1')],
+    'camera_topics': [
+        # IMTopic('/D435/color/image_raw'),
+        IMTopic('/D435/image_raw'),
+        #IMTopic('/yellow/image_raw'),
+        #IMTopic('/blue/image_raw'),
+        #IMTopic('/wrist/image_raw')
+    ],
+    # 'depth_camera_topics': [
+    #     IMTopic('/D435/depth/image_rect_raw', dtype='16UC1')
+    #     ],
     'gripper_attached': 'custom',
     'skip_move_to_neutral': True,
     'move_to_rand_start_freq': -1,
@@ -29,7 +34,7 @@ agent = {
     'type': TimedLoop,
     'env': (VR_WidowX, env_params),
     'recreate_env': (False, 1),
-    'T': 50,
+    'T': 100,  # TODO
     'image_height': 480,
     'image_width': 640,
     'make_final_gif': False,
@@ -49,5 +54,6 @@ config = {
     'policy': policy,
     'save_format': ['raw'],
     'make_diagnostics': False,
-    'record_floor_height': True
+    'record_floor_height': True,
+    'save_language': True,
 }

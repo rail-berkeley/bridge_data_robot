@@ -1,5 +1,5 @@
 #! /usr/bin/python3
-    
+
 from widowx_envs.policies.policy import Policy
 from widowx_envs.utils.utils import AttrDict
 from widowx_envs.control_loops import Environment_Exception
@@ -129,7 +129,7 @@ class VRTeleopPolicy(Policy):
 
     def act(self, t=None, i_tr=None, images=None, task_id=None):
         return self.act_use_fixed_reference(t, i_tr, images, task_id)
-    
+
     def get_action(self, obs_np, task_id_vec=None):
         dict = self.act(images=obs_np, task_id=task_id_vec)
         return dict['actions'], {'policy_type': dict['policy_type']}
