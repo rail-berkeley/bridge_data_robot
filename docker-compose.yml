@@ -72,5 +72,5 @@ services:
       - ./widowx_envs:/home/robonet/widowx_envs 
       - ./code/orca:/home/robonet/code/orca
       - ./experiments:/home/robonet/experiments
-      - ./data:/home/robonet/data
       - /mount/harddrive/:/home/robonet/trainingdata
+      - /mount/utopia_data/data:/home/robonet/data
