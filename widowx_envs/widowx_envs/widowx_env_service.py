@@ -8,7 +8,7 @@ from typing import Optional, Tuple, Any
 from widowx_envs.utils.exceptions import Environment_Exception
 
 # install from: https://github.com/youliangtan/edgeml
-from edgeml.interfaces import ActionClient, ActionServer, ActionConfig
+from edgeml.action import ActionClient, ActionServer, ActionConfig
 
 ##############################################################################
 
