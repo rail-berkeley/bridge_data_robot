@@ -12,8 +12,8 @@ from widowx_envs.policies.vr_teleop_policy import VRTeleopPolicy
 env_params = {
     'camera_topics': [IMTopic('/D435/color/image_raw'),
                       #IMTopic('/yellow/image_raw'),
-                      #IMTopic('/blue/image_raw'),
-                      #IMTopic('/wrist/image_raw')
+                      IMTopic('/blue/image_raw'),
+                      IMTopic('/wrist/image_raw')
                       ],
     'depth_camera_topics': [IMTopic('/D435/depth/image_rect_raw', dtype='16UC1')],
     'gripper_attached': 'custom',
@@ -29,7 +29,7 @@ agent = {
     'type': TimedLoop,
     'env': (VR_WidowX, env_params),
     'recreate_env': (False, 1),
-    'T': 70,
+    'T': 500,
     'image_height': 480,
     'image_width': 640,
     'make_final_gif': False,
@@ -49,5 +49,5 @@ config = {
     'policy': policy,
     'save_format': ['raw'],
     'make_diagnostics': False,
-    'record_floor_height': True
+    'record_floor_height': False
 }
