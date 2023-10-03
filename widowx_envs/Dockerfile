@@ -94,4 +94,5 @@ WORKDIR /home/${USER_ID}
 # Clone and install the edgeml library
 RUN git clone https://github.com/youliangtan/edgeml && \
     cd edgeml && \
+    git checkout a133c51f33a7d191bdbe89f470907c4da8674325 && \
     pip3 install -e .

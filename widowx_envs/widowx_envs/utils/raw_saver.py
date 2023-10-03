@@ -62,7 +62,8 @@ class RawSaver():
         if obs_dict is not None:
             obs_dict_no_image = copy.deepcopy(obs_dict)
             obs_dict_no_image.pop('images')
-            obs_dict_no_image.pop('depth_images')
+            if "depth_images" in obs_dict_no_image:
+                obs_dict_no_image.pop('depth_images')
             with open('{}/obs_dict.pkl'.format(traj_folder), 'wb') as file:
                 pkl.dump(obs_dict_no_image, file)
         if policy_outputs is not None:
