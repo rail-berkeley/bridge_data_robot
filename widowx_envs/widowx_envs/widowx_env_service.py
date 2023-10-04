@@ -1,16 +1,21 @@
-## This is the highest level interface to interact with the widowx setup.
+#! /usr/bin/python3
+# This is the highest level interface to interact with the widowx setup.
 
 import time
 import cv2
 import argparse
 import numpy as np
+import logging
+
 from typing import Optional, Tuple, Any
 from widowx_envs.utils.exceptions import Environment_Exception
 
 # install from: https://github.com/youliangtan/edgeml
 from edgeml.action import ActionClient, ActionServer, ActionConfig
+from edgeml.internal.utils import mat_to_jpeg, jpeg_to_mat
 
 ##############################################################################
+
 
 class WidowXConfigs:
     DefaultEnvParams = {
@@ -26,19 +31,21 @@ class WidowXConfigs:
         "catch_environment_except": False,
         "start_state": None,
         "return_full_image": False,
-        "camera_topics": [{"name": "/D435/color/image_raw", "flip": True}],
+        "camera_topics": [{"name": "/blue/image_raw", "flip": True}],
     }
 
     DefaultActionConfig = ActionConfig(
-        port_number = 5556,
-        action_keys = ["init", "move", "gripper", "reset", "step_action"],
-        observation_keys = ["image", "proprio"],
-        broadcast_port= 5556 + 1,
+        port_number=5556,
+        action_keys=["init", "move", "gripper", "reset", "step_action"],
+        observation_keys=["image", "state", "full_image"],
+        broadcast_port=5556 + 1,
     )
 
-print_red = lambda x: print("\033[91m{}\033[00m".format(x))
+
+def print_red(x): return print("\033[91m{}\033[00m".format(x))
 
 ##############################################################################
+
 
 class WidowXStatus:
     NO_CONNECTION = 0
@@ -48,12 +55,14 @@ class WidowXStatus:
 
 ##############################################################################
 
+
 class WidowXActionServer():
     """
     This is the highest level abstraction of the widowx setup. We will run
     this as a server, and we can have multiple clients connect to it and
     reveives the observation and control the widowx robot.
     """
+
     def __init__(self, port: int = 5556, testing: bool = False):
         edgeml_config = WidowXConfigs.DefaultActionConfig
         edgeml_config.port_number = port
@@ -62,8 +71,17 @@ class WidowXActionServer():
         self.testing = testing  # TODO: remove this soon
         self.bridge_env = None
         self.__server = ActionServer(edgeml_config,
-                                   obs_callback=self.__observe,
-                                   act_callback=self.__action)
+                                     obs_callback=self.__observe,
+                                     act_callback=self.__action,
+                                     log_level=logging.WARNING)
+        self._env_params = {}  # default nothing
+        self._action_methods = {
+            "init": self.__init,
+            "gripper": self.__gripper,
+            "move": self.__move,
+            "step_action": self.__step_action,
+            "reset": self.__reset,
+        }
 
     def start(self, threaded: bool = False):
         """
@@ -71,65 +89,70 @@ class WidowXActionServer():
         """
         self.__server.start(threaded)
 
+    def stop(self):
+        """Stop the server."""
+        self.__server.stop()
+        return WidowXStatus.SUCCESS
+
     def __action(self, type: str, req_payload: dict) -> dict:
-        return_status = WidowXStatus.SUCCESS
-        if type == "init":
-            if self.testing:
-                print_red("WARNING: Running in testing mode, \
-                    no env will be initialized.")
-                return {"status": WidowXStatus.NOT_INITIALIZED}
+        if type not in self._action_methods:
+            return {"status": WidowXStatus.EXECUTION_FAILURE}
+        if type != "init" and self.bridge_env is None:
+            print_red("WARNING: env not initialized.")
+            return {"status": WidowXStatus.NOT_INITIALIZED}
 
-            elif self.bridge_env and not req_payload["reinit"]:
-                print_red("env already initialized")
-                return {"status": WidowXStatus.SUCCESS}
+        status = self._action_methods[type](req_payload)
+        return {"status": status}
 
-            from widowx_envs.widowx_env import BridgeDataRailRLPrivateWidowX
-            from multicam_server.topic_utils import IMTopic
-            from tf.transformations import quaternion_from_euler
-            from tf.transformations import quaternion_matrix
+    def __init(self, payload) -> dict:
+        do_reinit = not self._env_params == payload["env_params"]
+        self._env_params = payload["env_params"]
 
-            # brute force way to convert json to IMTopic
-            env_params = None
-            _env_params = req_payload["env_params"]
-            cam_imtopic = []
-            for cam in _env_params["camera_topics"]:
-                imtopic_obj = IMTopic.model_validate(cam)
-                cam_imtopic.append(imtopic_obj)
-            _env_params["camera_topics"] = cam_imtopic
-            env_params = _env_params
+        if self.testing:
+            print_red("WARNING: Running in testing mode, \
+                no env will be initialized.")
+            return WidowXStatus.NOT_INITIALIZED
 
-            def get_tf_mat(pose):
-                # convert pose to a 4x4 tf matrix, rpy to quat
-                quat = quaternion_from_euler(pose[3], pose[4], pose[5])
-                tf_mat = quaternion_matrix(quat)
-                tf_mat[:3, 3] = pose[:3]
-                return tf_mat
+        elif not do_reinit:
+            print_red("env already initialized")
+            self.__reset()
+            return WidowXStatus.SUCCESS
 
-            self.get_tf_mat = get_tf_mat
-            self.bridge_env = BridgeDataRailRLPrivateWidowX(
-                env_params, fixed_image_size=req_payload["image_size"])
-            print("Initialized bridge env.")
+        from widowx_envs.widowx_env import BridgeDataRailRLPrivateWidowX
+        from multicam_server.topic_utils import IMTopic
+        from tf.transformations import quaternion_from_euler
+        from tf.transformations import quaternion_matrix
 
-        elif type == "gripper":
-            return_status = self.__gripper(req_payload["open"])
-        elif type == "move":
-            return_status = self.__move(
-                req_payload["pose"], req_payload["duration"], req_payload["blocking"])
-        elif type == "step_action":
-            return_status = self.__step_action(req_payload["action"])
-        elif type == "reset":
-            return_status = self.__reset()
-        return {"status": return_status}
-    
+        # brute force way to convert json to IMTopic
+        _env_params = payload["env_params"].copy()
+        cam_imtopic = []
+        for cam in _env_params["camera_topics"]:
+            imtopic_obj = IMTopic.model_validate(cam)
+            cam_imtopic.append(imtopic_obj)
+        _env_params["camera_topics"] = cam_imtopic
+
+        def get_tf_mat(pose):
+            # convert pose to a 4x4 tf matrix, rpy to quat
+            quat = quaternion_from_euler(pose[3], pose[4], pose[5])
+            tf_mat = quaternion_matrix(quat)
+            tf_mat[:3, 3] = pose[:3]
+            return tf_mat
+
+        self.get_tf_mat = get_tf_mat
+        self.bridge_env = BridgeDataRailRLPrivateWidowX(
+            _env_params, fixed_image_size=payload["image_size"])
+        print("Initialized bridge env.")
+        return WidowXStatus.SUCCESS
+
     def __observe(self, types: list) -> dict:
         if self.bridge_env:
             # we will default return image and proprio only
             obs = self.bridge_env.current_obs()
             obs = {
-                    "image": obs["image"],
-                    "state": obs["state"],
-                    "full_image": obs["full_image"][0]
-                  }
+                "image": obs["image"],
+                "state": obs["state"],
+                "full_image": mat_to_jpeg(obs["full_image"][0])  # faster
+            }
         else:
             # use dummy img with random noise
             img = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
@@ -137,61 +160,47 @@ class WidowXActionServer():
             print_red("WARNING: No bridge env not initialized.")
         return obs
 
-    def __gripper(self, open: float) -> WidowXStatus:
-        if self.bridge_env is None:
-            print_red("WARNING: No bridge env not initialized.")
-            return WidowXStatus.NOT_INITIALIZED
-        
-        if open > 0.5: # convert to bool, for future float support
+    def __gripper(self, payload) -> WidowXStatus:
+        if payload["open"] > 0.5:  # convert to bool, for future float support
             self.bridge_env.controller().open_gripper()
         else:
             self.bridge_env.controller().close_gripper()
         return WidowXStatus.SUCCESS
 
-    def __move(self, pose: np.ndarray, duration: float, blocking: bool = True
-               ) -> WidowXStatus:
-        if self.bridge_env is None:
-            print_red("WARNING: No bridge env not initialized.")
-            return WidowXStatus.NOT_INITIALIZED
-
+    def __move(self, payload) -> WidowXStatus:
+        pose = payload["pose"]
         if pose.shape == (4, 4):
             eep = pose
         else:
             eep = self.get_tf_mat(pose)
         try:
             self.bridge_env.controller().move_to_eep(
-                eep, duration=duration, blocking=blocking)
+                eep,
+                duration=payload["duration"],
+                blocking=payload["blocking"]
+            )
             self.bridge_env._reset_previous_qpos()
         except Environment_Exception as e:
             print_red("Move execution error: {}".format(e))
             return WidowXStatus.EXECUTION_FAILURE
         return WidowXStatus.SUCCESS
 
-    def __step_action(self, action: np.ndarray) -> WidowXStatus:
-        if self.bridge_env is None:
-            print_red("WARNING: No bridge env not initialized.")
-            return WidowXStatus.NOT_INITIALIZED
-
-        self.bridge_env.step(action)
+    def __step_action(self, payload) -> WidowXStatus:
+        self.bridge_env.step(payload["action"], blocking=False)
         return WidowXStatus.SUCCESS
 
-    def __reset(self) -> WidowXStatus:
-        if self.bridge_env is None:
-            print_red("WARNING: No bridge env not initialized.")
-            return WidowXStatus.NOT_INITIALIZED
-
+    def __reset(self, payload) -> WidowXStatus:
+        # NOTE(YL): in bridge env, the entire process is very stateful,
+        #           even reset might not be enough to reset the state
+        #           this will require further debug, a full refactoring
         # self.bridge_env.controller().move_to_neutral(duration=1.0)
         # self.bridge_env.controller().open_gripper()
         self.bridge_env.reset()
-        self.bridge_env.start()
-        return WidowXStatus.SUCCESS
-
-    def stop(self):
-        """Stop the server."""
-        self.__server.stop()
+        # self.bridge_env.start() # NOTE: seems to reset the duration=0, bad
         return WidowXStatus.SUCCESS
 
 ##############################################################################
+
 
 class WidowXClient():
     def __init__(self,
@@ -212,17 +221,14 @@ class WidowXClient():
     def init(self,
              env_params: dict,
              image_size: int = 256,
-             reinit: bool=False
-            ) -> WidowXStatus:
+             ) -> WidowXStatus:
         """
         Initialize the environment.
             :param env_params: a dict of env params
             :param image_size: the size of the image to return
-            :param reinit: whether to reinit the env, default False
         """
         payload = {"env_params": env_params,
-                   "image_size": image_size,
-                   "reinit": reinit}
+                   "image_size": image_size}
         res = self.__client.act("init", payload)
         return WidowXStatus.NO_CONNECTION if res is None else res["status"]
 
@@ -230,7 +236,7 @@ class WidowXClient():
              pose: np.ndarray,
              duration: float = 1.0,
              blocking: bool = False,
-            ) -> WidowXStatus:
+             ) -> WidowXStatus:
         """
         Command the arm to move to a given pose in space.
             :param pose: dim of 6, [x, y, z, roll, pitch, yaw] or
@@ -248,7 +254,7 @@ class WidowXClient():
         res = self.__client.act("gripper", {"open": state})
         return WidowXStatus.NO_CONNECTION if res is None else res["status"]
 
-    def step_action(self, action: np.ndarray) -> WidowXStatus:
+    def step_action(self, action: np.ndarray, blocking=False) -> WidowXStatus:
         """
         Step the action. size of 5 (3trans) or 7 (3trans1rot)
         Note that the action is in relative space.
@@ -268,6 +274,8 @@ class WidowXClient():
             :return a dict of observations
         """
         res = self.__client.obs()
+        # NOTE: this is a lossy conversion, but faster data transfer
+        res["image"] = jpeg_to_mat(res["image"])
         return res if res else None
 
     def stop(self):
@@ -275,6 +283,7 @@ class WidowXClient():
         self.__client.stop()
 
 ##############################################################################
+
 
 def show_video(client, duration, full_image=True):
     """This shows the video from the camera for a given duration."""
@@ -288,25 +297,35 @@ def show_video(client, duration, full_image=True):
         if full_image:
             img = res["full_image"]
         else:
-            img = res["image"]       
+            img = res["image"]
             # if img.shape[0] != 3:  # sanity check to make sure it's not flattened
             img = (img.reshape(3, 256, 256).transpose(1, 2, 0) * 255).astype(np.uint8)
         cv2.imshow("img", img)
         cv2.waitKey(100)  # 100 ms
 
+
 def main():
-    # NOTE: This is just for Testing
     parser = argparse.ArgumentParser()
     parser.add_argument('--server', action='store_true')
     parser.add_argument('--client', action='store_true')
     parser.add_argument('--ip', type=str, default='localhost')
     parser.add_argument('--port', type=int, default=5556)
-    parser.add_argument('--test', action='store_true')
+    parser.add_argument('--test', action='store_true', help='run in test mode')
     args = parser.parse_args()
 
     if args.server:
         widowx_server = WidowXActionServer(port=args.port, testing=args.test)
-        widowx_server.start()
+
+        # try capture errors and restart the server
+        while True:
+            try:
+                widowx_server.start()
+            except Exception as e:
+                if e == KeyboardInterrupt:
+                    break
+                print_red(f"{e}, Restarting server...")
+                widowx_server.stop()
+                time.sleep(1)
         widowx_server.stop()
 
     if args.client:
@@ -338,6 +357,10 @@ def main():
         assert args.test or res == WidowXStatus.SUCCESS, "gripper failed"
         show_video(widowx_client, duration=2.5)
 
+        print("Run single step_action")
+        widowx_client.step_action(np.array([0, 0, 0, 0, 0, 0, 0]))
+        show_video(widowx_client, duration=0.5)
+
         # move right down
         res = widowx_client.move(np.array([0.2, -0.1, 0.1, 0, 1.57, 0]))
         assert args.test or res == WidowXStatus.SUCCESS, "move failed"
@@ -351,6 +374,7 @@ def main():
 
         widowx_client.stop()
         print("Done all")
+
 
 if __name__ == '__main__':
     main()

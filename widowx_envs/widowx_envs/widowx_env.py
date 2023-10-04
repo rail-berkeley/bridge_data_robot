@@ -46,7 +46,7 @@ class WidowXEnv(RobotBaseEnv):
         parent_params.update(default_dict)
         return parent_params
 
-    def reset(self, itraj=None, reset_state=None):
+    def reset(self, itraj=None):
         """
         Resets the environment and returns initial observation
         :return: obs dict (look at step(self, action) for documentation)
@@ -193,7 +193,7 @@ class VR_WidowX(WidowXEnv):
         obs['task_stage'] = self.task_stage
         return obs
 
-    def reset(self, itraj=None, reset_state=None):
+    def reset(self, itraj=None):
         self.task_stage = 0
         obs = super(VR_WidowX, self).reset(itraj=itraj)
         start_key = 'handle'
@@ -448,9 +448,15 @@ class BridgeDataRailRLPrivateWidowX(WidowXEnv):
         parent_params.update(default_dict)
         return parent_params
 
-    def reset(self, itraj=None, reset_state=None):
+    def reset(self, itraj=None):
         self.move_except = False
-        return super().reset(itraj, reset_state)
+        return super().reset(itraj)
+        # TODO: (YL) test this, else just move bot back neutral
+        # self._controller.open_gripper(True)
+        # self._controller.move_to_neutral(duration=1.5)
+        # time.sleep(1.)
+        # self._reset_previous_qpos()
+        # return self.current_obs()
 
     @staticmethod
     def _to_float32_flat_image(image):
