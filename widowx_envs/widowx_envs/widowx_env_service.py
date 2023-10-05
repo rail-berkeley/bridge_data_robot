@@ -6,13 +6,14 @@ import cv2
 import argparse
 import numpy as np
 import logging
+import traceback
 
 from typing import Optional, Tuple, Any
 from widowx_envs.utils.exceptions import Environment_Exception
 
 # install from: https://github.com/youliangtan/edgeml
 from edgeml.action import ActionClient, ActionServer, ActionConfig
-from edgeml.internal.utils import mat_to_jpeg, jpeg_to_mat
+from edgeml.internal.utils import mat_to_jpeg, jpeg_to_mat, compute_hash
 
 ##############################################################################
 
@@ -29,7 +30,8 @@ class WidowXConfigs:
         ],
         "action_clipping": "xyz",
         "catch_environment_except": False,
-        "start_state": None,
+        "start_state": [0.3, 0.0, 0.15, 0, 0, 0, 1], # pose when reset is called
+        "skip_move_to_neutral": False,
         "return_full_image": False,
         "camera_topics": [{"name": "/blue/image_raw", "flip": True}],
     }
@@ -115,7 +117,7 @@ class WidowXActionServer():
 
         elif not do_reinit:
             print_red("env already initialized")
-            self.__reset()
+            self.__reset({})
             return WidowXStatus.SUCCESS
 
         from widowx_envs.widowx_env import BridgeDataRailRLPrivateWidowX
@@ -127,7 +129,7 @@ class WidowXActionServer():
         _env_params = payload["env_params"].copy()
         cam_imtopic = []
         for cam in _env_params["camera_topics"]:
-            imtopic_obj = IMTopic.model_validate(cam)
+            imtopic_obj = IMTopic.from_dict(cam)
             cam_imtopic.append(imtopic_obj)
         _env_params["camera_topics"] = cam_imtopic
 
@@ -186,7 +188,7 @@ class WidowXActionServer():
         return WidowXStatus.SUCCESS
 
     def __step_action(self, payload) -> WidowXStatus:
-        self.bridge_env.step(payload["action"], blocking=False)
+        self.bridge_env.step(payload["action"], blocking=payload["blocking"])
         return WidowXStatus.SUCCESS
 
     def __reset(self, payload) -> WidowXStatus:
@@ -260,7 +262,8 @@ class WidowXClient():
         Note that the action is in relative space.
         """
         assert len(action) in [5, 7], "invalid action shape"
-        res = self.__client.act("step_action", {"action": action})
+        res = self.__client.act("step_action", {"action": action,
+                                                "blocking": blocking})
         return WidowXStatus.NO_CONNECTION if res is None else res["status"]
 
     def reset(self) -> WidowXStatus:
@@ -274,9 +277,10 @@ class WidowXClient():
             :return a dict of observations
         """
         res = self.__client.obs()
+        if res is None: return None
         # NOTE: this is a lossy conversion, but faster data transfer
-        res["image"] = jpeg_to_mat(res["image"])
-        return res if res else None
+        res["full_image"] = jpeg_to_mat(res["full_image"])
+        return res
 
     def stop(self):
         """Stop the client."""
@@ -301,7 +305,7 @@ def show_video(client, duration, full_image=True):
             # if img.shape[0] != 3:  # sanity check to make sure it's not flattened
             img = (img.reshape(3, 256, 256).transpose(1, 2, 0) * 255).astype(np.uint8)
         cv2.imshow("img", img)
-        cv2.waitKey(100)  # 100 ms
+        cv2.waitKey(10)  # 10 ms
 
 
 def main():
@@ -323,6 +327,7 @@ def main():
             except Exception as e:
                 if e == KeyboardInterrupt:
                     break
+                print(traceback.format_exc())
                 print_red(f"{e}, Restarting server...")
                 widowx_server.stop()
                 time.sleep(1)

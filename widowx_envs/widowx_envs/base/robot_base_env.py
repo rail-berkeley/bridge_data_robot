@@ -352,8 +352,9 @@ class RobotBaseEnv(BaseEnv):
             return self._end_reset()
 
         if self._hp.start_state:
-            xyz = np.array(self._hp.start_state[:3])
-            theta = self._hp.start_state[3]
+            start_state = np.array(self._hp.start_state)
+            xyz = np.array(start_state[:3])
+            theta = start_state[3]
             self._move_to_state(xyz, theta, 2.)
         else:
             rand_xyz = np.random.uniform(self._low_bound[:3], self._high_bound[:3])
