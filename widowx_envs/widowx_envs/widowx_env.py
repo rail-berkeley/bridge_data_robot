@@ -22,7 +22,7 @@ from widowx_controller.widowx_controller import WidowX_Controller
 ##############################################################################
 
 class WidowXEnv(RobotBaseEnv):
-  
+
     def _default_hparams(self):
         robot_name = os.getenv('ROBONETV2_ARM')
         if robot_name is None:
@@ -440,9 +440,10 @@ class BridgeDataRailRLPrivateWidowX(WidowXEnv):
         default_dict = {
             'gripper_attached': 'custom',
             'skip_move_to_neutral': True,
-            'camera_topics': [IMTopic('/cam0/image_raw')],
             'image_crop_xywh': None,  # can be a tuple like (0, 0, 100, 100)
             # 'camera_topics': [IMTopic('/cam0/image_raw'), IMTopic('/cam1/image_raw'), IMTopic('/cam2/image_raw')],
+            # 'camera_topics': [IMTopic('/cam0/image_raw')],  # TODO
+            'camera_topics': [IMTopic('/D435/image_raw')],
         }
         parent_params = super()._default_hparams()
         parent_params.update(default_dict)
@@ -502,16 +503,16 @@ class FinetuningBridgeDataWidowX(BridgeDataRailRLPrivateWidowX):
                          task_id=task_id,
                          num_tasks=num_tasks,
                          fixed_image_size=fixed_image_size)
-        
+
         self.step_duration = 0.2
         self.last_tstep = time.time()
-        
+
     def get_contextual_diagnostics(self, a, b):
         return {}
-    
+
     def get_image(self):
         return self.current_obs()['image']
-    
+
     def reset_previous_qpos(self):
         return self._reset_previous_qpos()
 
@@ -537,7 +538,7 @@ class FinetuningBridgeDataWidowX(BridgeDataRailRLPrivateWidowX):
             'image_observation': obs['image'][0],
             'full_image_observation': obs['full_image'][0],
             'state': obs['state'],
-        } 
+        }
         return obs
 
 ##############################################################################

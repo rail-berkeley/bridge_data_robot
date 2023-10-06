@@ -74,3 +74,19 @@ services:
       - ./experiments:/home/robonet/experiments
       - /mount/harddrive/:/home/robonet/trainingdata
       - /mount/utopia_data/data:/home/robonet/data
+
+  jaxrl2:
+    image: robonet-jaxrl2
+    container_name: robonet_${USER}_orca
+    user: robonet:1002
+    build:
+      context: code/jaxrl2
+    network_mode: host
+    environment:
+      - WANDB_API_KEY=022ddeef4fdea91a8015522e21b5821ee6e123cb
+    runtime: nvidia
+    volumes:
+      - ./widowx_envs:/home/robonet/widowx_envs 
+      - ./code/jaxrl2:/home/robonet/code/jaxrl2
+      - ./experiments:/home/robonet/experiments
+      - /mount/harddrive/:/home/robonet/trainingdata
