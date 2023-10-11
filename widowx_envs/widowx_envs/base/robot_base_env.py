@@ -114,7 +114,7 @@ class RobotBaseEnv(BaseEnv):
         """Public method to access the controller"""
         if self._controller is None:
             raise NotImplementedError('controller not implemented')
-        self._reset_previous_qpos()  # TODO (YL) check if this is necessary
+        # self._reset_previous_qpos()  # TODO (YL) check if this is necessary
         return self._controller
 
     def _default_hparams(self):
@@ -254,6 +254,9 @@ class RobotBaseEnv(BaseEnv):
         if self._hp.resetqpos_after_every_step:
             self._reset_previous_qpos()  # this can cause accumulating errors
         time.sleep(self._hp.wait_time)
+        
+        if tstamp_return_obs is None:
+            return self.current_obs() # or None?
 
         if self._hp.adaptive_wait:
             t1 = time.time()
@@ -349,8 +352,9 @@ class RobotBaseEnv(BaseEnv):
             return self._end_reset()
 
         if self._hp.start_state:
-            xyz = np.array(self._hp.start_state[:3])
-            theta = self._hp.start_state[3]
+            start_state = np.array(self._hp.start_state)
+            xyz = np.array(start_state[:3])
+            theta = start_state[3]
             self._move_to_state(xyz, theta, 2.)
         else:
             rand_xyz = np.random.uniform(self._low_bound[:3], self._high_bound[:3])

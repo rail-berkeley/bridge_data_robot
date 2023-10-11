@@ -36,7 +36,7 @@ class WidowXEnv(RobotBaseEnv):
             'robot_name': robot_name,
             'randomize_initpos': 'full_area',
             'mode_rel': [True, True, True, True, True],
-            'start_state': None,
+            'start_state': [0.3, 0.0, 0.15, 0, 0, 0, 1],
             'start_transform': None,
             'skip_move_to_neutral': False,
             'move_to_rand_start_freq': 1,
@@ -46,7 +46,7 @@ class WidowXEnv(RobotBaseEnv):
         parent_params.update(default_dict)
         return parent_params
 
-    def reset(self, itraj=None, reset_state=None):
+    def reset(self, itraj=None):
         """
         Resets the environment and returns initial observation
         :return: obs dict (look at step(self, action) for documentation)
@@ -73,6 +73,7 @@ class WidowXEnv(RobotBaseEnv):
             if start_state is None:
                 start_state = self._hp.start_state
                 # start_state = pkl.load(open(self._hp.start_state + '/obs_dict.pkl', 'rb'))['state'][0]
+            start_state = np.array(start_state)
             if start_state.shape[0] == 5:
                 start_state = np.concatenate([start_state[:3], np.zeros(2), start_state[3:]])
             transform, _ = state2transform(start_state, self._controller.default_rot)
@@ -116,6 +117,7 @@ class WidowXEnv(RobotBaseEnv):
                 if self._hp.fix_zangle:
                     zangle = 0
                 self._controller.move_to_state(startpos, zangle, duration=2)
+                self._reset_previous_qpos()
             except Environment_Exception:
                 self.move_to_startstate()  # retry with different sample position
 
@@ -193,7 +195,7 @@ class VR_WidowX(WidowXEnv):
         obs['task_stage'] = self.task_stage
         return obs
 
-    def reset(self, itraj=None, reset_state=None):
+    def reset(self, itraj=None):
         self.task_stage = 0
         obs = super(VR_WidowX, self).reset(itraj=itraj)
         start_key = 'handle'
@@ -449,9 +451,15 @@ class BridgeDataRailRLPrivateWidowX(WidowXEnv):
         parent_params.update(default_dict)
         return parent_params
 
-    def reset(self, itraj=None, reset_state=None):
+    def reset(self, itraj=None):
         self.move_except = False
-        return super().reset(itraj, reset_state)
+        return super().reset(itraj)
+        # # TODO: (YL) test this, else just move bot back neutral
+        self._controller.open_gripper(True)
+        self._controller.move_to_neutral(duration=1.5)
+        time.sleep(1.)
+        self._reset_previous_qpos()
+        return self.current_obs()
 
     @staticmethod
     def _to_float32_flat_image(image):

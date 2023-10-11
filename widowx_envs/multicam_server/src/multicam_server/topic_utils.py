@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
 import cv2
-from pydantic import BaseModel
+from dataclasses import dataclass, asdict
+from typing import Any, Type
 
-class IMTopic(BaseModel):
+
+@dataclass
+class IMTopic:
     """
-    Configuration for an image topic. User can also use json to create this object:
-        obj = IMTopic.model_validate_json(json_data)
+    Configuration for an image topic.
     """
     name: str
     width: int = 640
@@ -18,10 +20,6 @@ class IMTopic(BaseModel):
     dtype: str = "bgr8"
     flip: bool = False
     info_name: str = None
-
-    def __init__(self, name, **data):
-        """For backwards compatibility, we allow user to pass in a string for name."""
-        super().__init__(name=name, **data)
 
     def process_image(self, img):
         # Check for overcrop conditions
@@ -43,3 +41,10 @@ class IMTopic(BaseModel):
         if (self.height, self.width) != img.shape[:2]:
             return cv2.resize(img, (self.width, self.height), interpolation=cv2.INTER_AREA)
         return img
+
+    @classmethod
+    def from_dict(cls: Type[Any], data: dict) -> Any:
+        return cls(**data)
+
+    def to_dict(self):
+        return asdict(self)

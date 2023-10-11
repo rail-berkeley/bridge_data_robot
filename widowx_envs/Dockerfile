@@ -65,7 +65,6 @@ RUN source ~/myenv/bin/activate && pip install wheel && pip install -r /tmp/requ
 
 # add widowx_envs code for build step
 COPY . /home/${USER_ID}/widowx_envs
-COPY . /home/${USER_ID}/widowx_env
 RUN ln -s ~/widowx_envs ~/interbotix_ws/src/
 ENV PYTHONPATH="${PYTHONPATH}:/home/${USER_ID}/interbotix_ws/src/widowx_envs"
 ENV PYTHONPATH="${PYTHONPATH}:/home/${USER_ID}/interbotix_ws/src/multicam_server"
@@ -96,3 +95,7 @@ WORKDIR /home/${USER_ID}
 RUN git clone https://github.com/youliangtan/edgeml && \
     cd edgeml && \
     pip3 install -e .
+
+# Create alias to python3 widowx_envs/widowx_envs/widowx_env_service.py
+# This is a workaround for pip3 install -e .
+RUN echo 'alias widowx_env_service="python3 ~/widowx_envs/widowx_envs/widowx_env_service.py"' >> ~/.bashrc
