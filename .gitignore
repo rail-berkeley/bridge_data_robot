@@ -161,3 +161,7 @@ cython_debug/
 
 usb_connector_chart.yml
 code
+
+# ViLD stuff
+image_path_v2/
+experiments/bgbot/
