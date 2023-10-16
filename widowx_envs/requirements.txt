@@ -25,4 +25,8 @@ joblib
 pickle5
 h5py
 pydantic
+easydict
+torch
+tensorflow
 git+https://github.com/rail-berkeley/oculus_reader.git
+git+https://github.com/openai/CLIP.git
