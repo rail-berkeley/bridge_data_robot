@@ -33,7 +33,7 @@ class WidowXConfigs:
         "start_state": [0.3, 0.0, 0.15, 0, 0, 0, 1], # pose when reset is called
         "skip_move_to_neutral": False,
         "return_full_image": False,
-        "camera_topics": [{"name": "/blue/image_raw", "flip": True}],
+        "camera_topics": [{"name": "/blue/image_raw"}],
     }
 
     DefaultActionConfig = ActionConfig(
@@ -76,7 +76,9 @@ class WidowXActionServer():
                                      obs_callback=self.__observe,
                                      act_callback=self.__action,
                                      log_level=logging.WARNING)
+
         self._env_params = {}  # default nothing
+        self._image_size = None  # default None
         self._action_methods = {
             "init": self.__init,
             "gripper": self.__gripper,
@@ -96,29 +98,10 @@ class WidowXActionServer():
         self.__server.stop()
         return WidowXStatus.SUCCESS
 
-    def __action(self, type: str, req_payload: dict) -> dict:
-        if type not in self._action_methods:
-            return {"status": WidowXStatus.EXECUTION_FAILURE}
-        if type != "init" and self.bridge_env is None:
-            print_red("WARNING: env not initialized.")
-            return {"status": WidowXStatus.NOT_INITIALIZED}
-
-        status = self._action_methods[type](req_payload)
-        return {"status": status}
-
-    def __init(self, payload) -> dict:
-        do_reinit = not self._env_params == payload["env_params"]
-        self._env_params = payload["env_params"]
-
-        if self.testing:
-            print_red("WARNING: Running in testing mode, \
-                no env will be initialized.")
-            return WidowXStatus.NOT_INITIALIZED
-
-        elif not do_reinit:
-            print_red("env already initialized")
-            self.__reset({})
-            return WidowXStatus.SUCCESS
+    def init_robot(self, env_params, image_size):
+        """Public method to init the robot"""
+        if self.bridge_env:
+            del self.bridge_env
 
         from widowx_envs.widowx_env import BridgeDataRailRLPrivateWidowX
         from multicam_server.topic_utils import IMTopic
@@ -126,7 +109,7 @@ class WidowXActionServer():
         from tf.transformations import quaternion_matrix
 
         # brute force way to convert json to IMTopic
-        _env_params = payload["env_params"].copy()
+        _env_params = env_params.copy()
         cam_imtopic = []
         for cam in _env_params["camera_topics"]:
             imtopic_obj = IMTopic.from_dict(cam)
@@ -142,8 +125,42 @@ class WidowXActionServer():
 
         self.get_tf_mat = get_tf_mat
         self.bridge_env = BridgeDataRailRLPrivateWidowX(
-            _env_params, fixed_image_size=payload["image_size"])
+            _env_params, fixed_image_size=image_size)
         print("Initialized bridge env.")
+
+    def hard_reset(self) -> bool:
+        """This conduct a hard reset the Widowxenv"""
+        if self._image_size is None:
+            print_red("env was not init before")
+            return False
+        self.init_robot(self._env_params, self._image_size)
+
+    def __action(self, type: str, req_payload: dict) -> dict:
+        if type not in self._action_methods:
+            return {"status": WidowXStatus.EXECUTION_FAILURE}
+        if type != "init" and self.bridge_env is None:
+            print_red("WARNING: env not initialized.")
+            return {"status": WidowXStatus.NOT_INITIALIZED}
+
+        status = self._action_methods[type](req_payload)
+        return {"status": status}
+
+    def __init(self, payload) -> WidowXStatus:
+        do_reinit = not self._env_params == payload["env_params"]
+        self._env_params = payload["env_params"]
+        self._image_size = payload["image_size"]
+
+        if self.testing:
+            print_red("WARNING: Running in testing mode, \
+                no env will be initialized.")
+            return WidowXStatus.NOT_INITIALIZED
+
+        elif not do_reinit:
+            print_red("env already initialized")
+            self.__reset({})
+            return WidowXStatus.SUCCESS
+
+        self.init_robot(payload["env_params"], payload["image_size"])
         return WidowXStatus.SUCCESS
 
     def __observe(self, types: list) -> dict:
@@ -277,7 +294,8 @@ class WidowXClient():
             :return a dict of observations
         """
         res = self.__client.obs()
-        if res is None: return None
+        if res is None:
+            return None
         # NOTE: this is a lossy conversion, but faster data transfer
         res["full_image"] = jpeg_to_mat(res["full_image"])
         return res
@@ -320,9 +338,10 @@ def main():
     if args.server:
         widowx_server = WidowXActionServer(port=args.port, testing=args.test)
 
-        # try capture errors and restart the server
+        # try capture errors and hard restart the server
         while True:
             try:
+                # this is a blocking call
                 widowx_server.start()
             except Exception as e:
                 if e == KeyboardInterrupt:
@@ -330,7 +349,7 @@ def main():
                 print(traceback.format_exc())
                 print_red(f"{e}, Restarting server...")
                 widowx_server.stop()
-                time.sleep(1)
+                widowx_server.hard_reset()
         widowx_server.stop()
 
     if args.client:
