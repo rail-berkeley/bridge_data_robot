@@ -1,10 +1,10 @@
 from widowx_envs.widowx_env import BridgeDataRailRLPrivateWidowX
-from widowx_envs.widowx_envs.policies.scripted_pickplace import PickPlacePolicy
-from widowx_envs.widowx_envs.utils.object_detection.object_detector_ViLD import ObjectDetectorViLD
-from widowx_envs.widowx_envs.utils.object_detection.object_detector_kmeans import ObjectDetectorKmeans
-from widowx_envs.widowx_envs.utils.object_detection.object_detector_DL import ObjectDetectorDL
-from widowx_envs.widowx_envs.utils.params import *
-from widowx_envs.utils.grasp_utils import rgb_to_robot_coords
+from widowx_envs.policies.scripted_pickplace import PickPlacePolicy
+from widowx_envs.utils.object_detection.object_detector_ViLD import ObjectDetectorViLD
+from widowx_envs.utils.object_detection.object_detector_kmeans import ObjectDetectorKmeans
+from widowx_envs.utils.object_detection.object_detector_DL import ObjectDetectorDL
+from widowx_envs.utils.params import *
+from widowx_envs.utils.grasp_utils import rgb_to_robot_coords # where is transmatrix being used? 
 from widowx_envs.utils.exceptions import Environment_Exception
 import random
 import numpy as np

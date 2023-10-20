@@ -1,6 +1,6 @@
 import numpy as np
 from widowx_envs.utils.grasp_utils import rgb_to_robot_coords
-from widowx_envs.widowx_envs.utils.params import *
+from widowx_envs.utils.params import *
 
 
 class PickPlacePolicy:

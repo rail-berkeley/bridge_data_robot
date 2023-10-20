@@ -6,7 +6,9 @@ from widowx_envs.utils.grasp_utils import (
     execute_reach
 )
 from widowx_envs.utils.params import WORKSPACE_BOUNDARIES
-from widowx_envs.utils.object_detection import ObjectDetectorKmeans, ObjectDetectorDL
+from widowx_envs.utils.object_detection.object_detector_kmeans import ObjectDetectorKmeans
+from widowx_envs.utils.object_detection.object_detector_DL import ObjectDetectorDL 
+from widowx_envs.utils.object_detection.object_detector_ViLD import ObjectDetectorViLD
 from widowx_envs.widowx.env_wrappers import NormalizedBoxEnv
 from tqdm import tqdm
 import numpy as np
@@ -49,7 +51,7 @@ def generate_goals(env, retry=0, change_per_retry=0.03, starting_eps=0.03):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--save_dir", type=str, default="")
-    parser.add_argument("-d", "--detector", required=True, choices=('kmeans', 'dl'))
+    parser.add_argument("-d", "--detector", required=True, choices=('kmeans', 'dl', 'ViLD'))
     parser.add_argument("-i", "--id", help='object class ID for the DL detector', required=False, type=str, default=None)
     parser.add_argument('--skip-move-to-neutral', action='store_true', default=False)
     args = parser.parse_args()
@@ -64,7 +66,9 @@ if __name__ == '__main__':
          'skip_move_to_neutral': args.skip_move_to_neutral}
     ))
 
-    if args.detector == 'kmeans':
+    if args.detector == 'ViLD':
+        object_detector = ObjectDetectorViLD(env, args.save_dir)
+    elif args.detector == 'kmeans':
         object_detector = ObjectDetectorKmeans(env, args.save_dir)
         object_detector.try_make_background_image()
     elif args.detector == 'dl':
