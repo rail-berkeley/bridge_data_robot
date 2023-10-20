@@ -865,4 +865,4 @@ class ViLD:
 
         print("Centroids:", centroids)
 
-        return centroids 
+        return board_bbox, centroids 
