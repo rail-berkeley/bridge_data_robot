@@ -1,5 +1,5 @@
-from widowx_envs.utils.object_detection.object_detector import ObjectDetector
-from widowx_envs.scripts.ViLD import ViLD
+from object_detector import ObjectDetector
+from scripts.ViLD import ViLD
 
 
 class ObjectDetectorViLD(ObjectDetector):
@@ -12,4 +12,4 @@ class ObjectDetectorViLD(ObjectDetector):
         self.v = ViLD() 
 
     def get_centroids(self, image): # need to change
-        return self.v.get_centroids('test1.jpg', self.category_names, self.game_board_str)
+        return self.v.get_centroids('test1.jpg', self.category_names, self.game_board_str)[1]
