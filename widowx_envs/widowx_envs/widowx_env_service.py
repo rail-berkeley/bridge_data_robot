@@ -196,7 +196,8 @@ class WidowXActionServer():
             self.bridge_env.controller().move_to_eep(
                 eep,
                 duration=payload["duration"],
-                blocking=payload["blocking"]
+                blocking=payload["blocking"],
+                step=False
             )
             self.bridge_env._reset_previous_qpos()
         except Environment_Exception as e:
@@ -215,7 +216,7 @@ class WidowXActionServer():
         # self.bridge_env.controller().move_to_neutral(duration=1.0)
         # self.bridge_env.controller().open_gripper()
         self.bridge_env.reset()
-        # self.bridge_env.start() # NOTE: seems to reset the duration=0, bad
+        self.bridge_env.start()
         return WidowXStatus.SUCCESS
 
 ##############################################################################
