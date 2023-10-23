@@ -1,24 +1,19 @@
-#@title Import libraries
-
-
 from tqdm import tqdm
 import numpy as np
 import torch
 import clip
 from easydict import EasyDict
 
+import collections
+import numpy as np
 
 from matplotlib import pyplot as plt
 from matplotlib import patches
-
-import collections
-import numpy as np
 
 from PIL import Image
 from pprint import pprint
 from scipy.special import softmax
 # import yaml
-
 
 import tensorflow as tf
 
@@ -28,12 +23,10 @@ import math
 import PIL.ImageColor as ImageColor
 import PIL.ImageDraw as ImageDraw
 import PIL.ImageFont as ImageFont
-
-
 class ViLD:
 
-    def __init__(self): 
-    
+    def __init__(self):
+
         FLAGS = {
         'prompt_engineering': True,
         'this_is': True,
@@ -41,7 +34,7 @@ class ViLD:
         'temperature': 100.0,
         'use_softmax': False,
         }
-            
+
         self.FLAGS = EasyDict(FLAGS)
 
 
@@ -190,7 +183,7 @@ class ViLD:
         ]
 
         self.game_board_str = "square game board"
-        self.category_name_string = ';'.join(['black checkers piece', 'white checkers piece', self.game_board_str])
+        self.category_name_string = ';'.join(['black circle', 'white circle', self.game_board_str])
         self.category_names = ['background'] + [x.strip() for x in self.category_name_string.split(';')]
         self.max_boxes_to_draw = 25 #@param {type:"integer"}
 
@@ -208,7 +201,7 @@ class ViLD:
         if rm_dot:
             res = res.rstrip('.')
         return res
-    
+
 
     def build_text_embedding(self, categories):
         if self.FLAGS.prompt_engineering:
@@ -220,8 +213,9 @@ class ViLD:
 
         with torch.no_grad():
             all_text_embeddings = []
-            print('Building text embeddings...')
-            for category in tqdm(categories):
+            #print('Building text embeddings...')
+            # tqdm categories
+            for category in categories:
                 texts = [
                     template.format(self.processed_name(category['name'], rm_dot=True),
                                     article=self.article(category['name']))
@@ -280,7 +274,7 @@ class ViLD:
             inds = np.where(overlap <= thresh)[0]
             order = order[inds + 1]
         return keep
-    
+
 
     def draw_bounding_box_on_image(self, image, ymin, xmin, ymax, xmax, color='red', thickness=4, display_str_list=(), use_normalized_coordinates=True):
         draw = ImageDraw.Draw(image)
@@ -331,8 +325,8 @@ class ViLD:
                                     thickness, display_str_list,
                                     use_normalized_coordinates)
         np.copyto(image, np.array(image_pil))
-            
-    
+
+
     def draw_mask_on_image_array(self, image, mask, color='red', alpha=0.4):
         if image.dtype != np.uint8:
             raise ValueError('`image` not of type np.uint8')
@@ -355,7 +349,7 @@ class ViLD:
 
 
 
-    def visualize_boxes_and_labels_on_image_array(self, 
+    def visualize_boxes_and_labels_on_image_array(self,
         image,
         boxes,
         classes,
@@ -374,7 +368,7 @@ class ViLD:
         mask_alpha=0.4,
         plot_color=None,
     ):
-    
+
 
         box_to_display_str_map = collections.defaultdict(list)
         box_to_color_map = collections.defaultdict(str)
@@ -525,7 +519,7 @@ class ViLD:
         segms = np.array(segms)
         assert masks.shape[0] == segms.shape[0]
         return segms
-    
+
 
     def show_points(self, coords, labels, ax, marker_size=375):
         pos_points = coords[labels==1]
@@ -573,7 +567,7 @@ class ViLD:
         category_indices = {cat['id']: cat for cat in categories}
         fig_size_h = min(max(5, int(len(category_names) / 2.5) ), 10)
         return categories, category_indices, fig_size_h
-    
+
 
     # Plot detected boxes on the input image
     def plot_boxes_on_image(self, image, segmentations, rescaled_detection_boxes, detection_masks, image_height,
@@ -660,7 +654,7 @@ class ViLD:
             cnt += 1
             # fig.tight_layout()
         return cnt
-    
+
 
     def main_fxn(self, image_path, category_names, params):
   #################################################################
@@ -710,7 +704,7 @@ class ViLD:
         box_sizes = (rescaled_detection_boxes[:, 2] - rescaled_detection_boxes[:, 0]) * (rescaled_detection_boxes[:, 3] - rescaled_detection_boxes[:, 1])
 
         # Filter out invalid rois (nmsed rois)
-        #dtype = int 
+        #dtype = int
         valid_indices = np.where(
             np.logical_and(
                 np.isin(np.arange(len(roi_scores), dtype=int), nmsed_indices),
@@ -723,7 +717,7 @@ class ViLD:
                 )
             )
         )[0]
-        print('number of valid indices', len(valid_indices))
+        #print('number of valid indices', len(valid_indices))
 
         detection_roi_scores = roi_scores[valid_indices][:max_boxes_to_draw, ...]
         detection_boxes = detection_boxes[valid_indices][:max_boxes_to_draw, ...]
@@ -763,24 +757,23 @@ class ViLD:
         #                        detection_roi_scores, rescaled_detection_boxes, fig_size_h)
 
         #print('Detection counts:', cnt)
-        return processed_boxes, indices, scores_all, n_boxes
+        return processed_boxes, indices, scores_all, n_boxes, detection_roi_scores
         #, detection_roi_scores, rescaled_detection_boxes, segmentations, raw_image, fig_size_h
-    
 
 
-    def get_largest_bbox(self, n_boxes, processed_boxes, indices, scores_all, category):
-        max_area = 0
+
+    def get_best_bbox(self, n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, category):
+        max_rpn_score = 0
         max_idx = -1
         for anno_idx in indices[0:int(n_boxes)]:
             scores = scores_all[anno_idx]
             top_category = self.category_names[np.argmax(scores)]
             if top_category == category:
-                bbox = processed_boxes[anno_idx]
-                area = bbox[2] * bbox[3]
-                if area > max_area:
-                    max_area, max_idx = area, anno_idx
+                rpn_score = detection_roi_scores[anno_idx]
+                if rpn_score > max_rpn_score:
+                    max_rpn_score, max_idx = rpn_score, anno_idx
         return processed_boxes[max_idx]
-    
+
 
     # Given a bounding box representing the edges of the board, return
 # the "letter-number" notation of the piece centered at piece_x, piece_x
@@ -793,11 +786,11 @@ class ViLD:
         row = int(math.ceil(((piece_y - top_left_y) / (height / 3))))
 
         return col + str(row)
-    
+
     def is_on_board(self, board_bbox, piece_x, piece_y):
         top_left_x, top_left_y, width, height = board_bbox[0], board_bbox[1], board_bbox[2], board_bbox[3]
         return piece_x > top_left_x and piece_x < top_left_x + width and piece_y > top_left_y and piece_y < top_left_y + height
-    
+
 
     def print_board(self, board_state):
         print("  A B C")
@@ -814,7 +807,7 @@ class ViLD:
         col = ord(letter) - ord('A')
         row = number - 1
         return row, col
-    
+
     def print_board_dict(self, board_state_dict):
         board_state = [['-' for _ in range(3)] for _ in range(3)]
         for letter_number in board_state_dict.keys():
@@ -822,20 +815,26 @@ class ViLD:
             board_state[row][col] = board_state_dict[letter_number]
         self.print_board(board_state)
 
-    
-    def get_centroids(self, image_path, category_names, game_board_str): 
+    def get_board_state(self, board_state_dict):
+        board_state = [[' ' for _ in range(3)] for _ in range(3)]
+        for letter_number in board_state_dict.keys():
+            row, col = self.letter_number_to_row_col(letter_number)
+            board_state[row][col] = board_state_dict[letter_number]
+        return board_state
+
+    def get_centroids(self, image_path, category_names, game_board_str):
         # let's assume that white pieces are Xs and black pieces are Os
         params = self.max_boxes_to_draw, self.nms_threshold, self.min_rpn_score_thresh, self.min_box_area
-        processed_boxes, indices, scores_all, n_boxes = self.main_fxn(image_path, category_names, params)
+        processed_boxes, indices, scores_all, n_boxes, detection_roi_scores = self.main_fxn(image_path, category_names, params)
 
         board_state = [['-' for _ in range(3)] for _ in range(3)]
         raw_image = np.asarray(Image.open(open(image_path, 'rb')).convert("RGB"))
         num_x_off_board = 0
         num_o_off_board = 0
-        board_bbox = self.get_largest_bbox(n_boxes, processed_boxes, indices, scores_all, game_board_str)
+        board_bbox = self.get_best_bbox(n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, game_board_str)
         board_state_dict = {}
 
-        centroids = dict()  
+        centroids = []
 
         for anno_idx in indices[0:int(n_boxes)]:
             scores = scores_all[anno_idx]
@@ -843,26 +842,30 @@ class ViLD:
             if top_category != game_board_str:
                 bbox = processed_boxes[anno_idx]
                 center_x, center_y = (2 * bbox[0] + bbox[2]) / 2, (2 * bbox[1] + bbox[3]) / 2
-                if top_category == "white checkers piece":
+                if top_category == "white circle":
+                    if bbox[2] * bbox[3] > ((board_bbox[2])/3) * ((board_bbox[3])/3):
+                      continue
                     if self.is_on_board(board_bbox, center_x, center_y):
                         board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = 'X'
                     # show_points_on_image(raw_image, [[center_x, center_y]])
-                        #centroids[top_category + str(anno_idx)] = [center_x, center_y] 
+                        centroids.append([center_x, center_y])
                     else:
-                        centroids[top_category + str(num_x_off_board)] = [center_x, center_y] 
+                        centroids.append([center_x, center_y])
                         num_x_off_board += 1
-                elif top_category == "black checkers piece":
+                elif top_category == "black circle":
+                    if bbox[2] * bbox[3] > ((board_bbox[2])/3) * ((board_bbox[3])/3):
+                      continue
                     if self.is_on_board(board_bbox, center_x, center_y):
                         board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = 'O'
-                        #centroids[top_category + str(anno_idx)] = [center_x, center_y] 
+                        centroids.append([center_x, center_y])
                     else:
-                        centroids[top_category + str(num_o_off_board)] = [center_x, center_y] 
+                        centroids.append([center_x, center_y])
                         num_o_off_board += 1
 
-        print(board_state_dict)
-        self.print_board_dict(board_state_dict)
-        print(f"There are {num_x_off_board} white pieces (Xs) and {num_o_off_board} black pieces (Os) not on the board.")
+        #print(board_state_dict)
+        #self.print_board_dict(board_state_dict)
+        #print(f"There are {num_x_off_board} white pieces (Xs) and {num_o_off_board} black pieces (Os) not on the board.")
 
-        print("Centroids:", centroids)
+        #print("Centroids:", centroids)
 
-        return board_bbox, centroids 
+        return self.get_board_state(board_state_dict), board_bbox, centroids
