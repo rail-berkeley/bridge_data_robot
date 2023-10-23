@@ -16,7 +16,7 @@ class ObjectDetector:
 
         if self.detector_type == 'ViLD':
             self.transmatrix = KMEANS_RGB_TO_ROBOT_TRANSMATRIX # need to change 
-        if self.detector_type == 'kmeans':
+        elif self.detector_type == 'kmeans':
             self.transmatrix = KMEANS_RGB_TO_ROBOT_TRANSMATRIX
         elif self.detector_type == 'dl':
             self.transmatrix = DL_RGB_TO_ROBOT_TRANSMATRIX

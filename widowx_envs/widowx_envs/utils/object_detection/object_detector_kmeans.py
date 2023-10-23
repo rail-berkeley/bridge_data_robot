@@ -22,7 +22,7 @@ class ObjectDetectorKmeans(ObjectDetector):
         img, canvas = self._background_subtraction(image)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img = self._downsample_average(img)
-        points = self._extract_points(img, self.extract_points_stride, self.extract_points_thresh)
+        points = self._extract_points(img, self.extract_points_stride, self.extract_points_thresh, self.save_dir)
         centroids = self._k_means(points)
         centroids = {i: centroids[i] for i in range(len(centroids))}
         return centroids
@@ -67,7 +67,7 @@ class ObjectDetectorKmeans(ObjectDetector):
         centroids, _ = kmeans(points, self.num_objects)
         return centroids
 
-    def _extract_points(self, image, stride=4, threshold=50, save_dir=""):
+    def _extract_points(self, image, stride=4, threshold=10, save_dir=""):
         height, width = image.shape
         new_image = cv2.cvtColor(image,cv2.COLOR_GRAY2RGB)
         points = []
