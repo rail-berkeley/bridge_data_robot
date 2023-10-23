@@ -5,9 +5,10 @@ import time
 from widowx_envs.utils.transformation_utils import state2transform
 import numpy as np
 import math
-from widowx_envs.base.base_env2 import BaseRobotEnv2
-from widowx_envs.widowx.src.widowx_controller import WidowX_Controller
-from widowx_envs.widowx.src.vr_controller_client import WidowX_VRContollerClient
+# from widowx_envs.base.base_env2 import BaseRobotEnv2
+from widowx_envs.base.robot_base_env import RobotBaseEnv
+from widowx_controller.src.widowx_controller.widowx_controller import WidowX_Controller
+# from widowx_envs.widowx.src.vr_controller_client import WidowX_VRContollerClient
 from widowx_envs.utils.exceptions import Environment_Exception
 from widowx_envs.utils.utils import ask_confirm
 import os
@@ -17,7 +18,7 @@ import torch
 from widowx_envs.utils.exceptions import Environment_Exception
 
 
-class WidowXEnv(BaseRobotEnv2):
+class WidowXEnv(RobotBaseEnv):
   
     def _default_hparams(self):
         robot_name = os.getenv('ROBONETV2_ARM')
@@ -59,7 +60,7 @@ class WidowXEnv(BaseRobotEnv2):
                     self.move_to_startstate()
 
         self._reset_previous_qpos()
-        obs = self._get_obs()
+        obs = self.current_obs()
         return obs
 
     def move_to_startstate(self, start_state=None):
@@ -175,8 +176,8 @@ class VR_WidowX(WidowXEnv):
             self.task_stage += 1
         return obs
 
-    def _get_obs(self):
-        obs = super(VR_WidowX, self)._get_obs()
+    def current_obs(self):
+        obs = super(VR_WidowX, self).current_obs()
         if self.task_stage == self._hp.num_task_stages:
             obs['env_done'] = True
         obs['task_stage'] = self.task_stage
@@ -194,7 +195,7 @@ class VR_WidowX(WidowXEnv):
             if 'B' in buttons and buttons['B']:
                 self.move_to_neutral()
                 print("moved to neutral. waiting for {} button press to start recording.".format(start_key))
-        return self._get_obs()
+        return self.current_obs()
 
     def ask_confirmation(self):
         print('current endeffector pos', self.get_full_state()[:3])
@@ -267,8 +268,8 @@ class StateReachingWidowX(WidowXEnv):
         parent_params.update(default_dict)
         return parent_params
 
-    def _get_obs(self):
-        full_obs = super(StateReachingWidowX, self)._get_obs()
+    def current_obs(self):
+        full_obs = super(StateReachingWidowX, self).current_obs()
         ee_coord = full_obs['full_state'][:3]
         vector_to_goal = self.goal_coord - ee_coord
         obs = {'vector_to_goal': vector_to_goal, 'state': self.get_full_state(),
@@ -336,7 +337,7 @@ class ImageReachingWidowX(StateReachingWidowX):
 
     def _get_processed_image(self, image=None):
         if image is None:
-            image = super(StateReachingWidowX, self)._get_obs()['images'][0]
+            image = super(StateReachingWidowX, self).current_obs()['images'][0]
 
         if self._hp['image_crop_xywh'] is None:
             trimmed_image = image
@@ -380,8 +381,8 @@ class ImageReachingWidowX(StateReachingWidowX):
         except Exception as e:
             print(e)
 
-    def _get_obs(self):
-        full_obs = super(StateReachingWidowX, self)._get_obs()
+    def current_obs(self):
+        full_obs = super(StateReachingWidowX, self).current_obs()
         image = full_obs['images'][0]
         ee_coord = full_obs['full_state'][:3]
         vector_to_goal = self.goal_coord - ee_coord
@@ -422,7 +423,7 @@ class BridgeDataRailRLPrivateWidowXAdapter(WidowXEnv):
         default_dict = {
             'gripper_attached': 'custom',
             'skip_move_to_neutral': True,
-            'camera_topics': [IMTopic('/cam0/image_raw')],
+            'camera_topics': [IMTopic('/blue/image_raw')],
             'image_crop_xywh': None,  # can be a tuple like (0, 0, 100, 100)
             # 'camera_topics': [IMTopic('/cam0/image_raw'), IMTopic('/cam1/image_raw'), IMTopic('/cam2/image_raw')],
         }
@@ -461,9 +462,9 @@ class BridgeDataRailRLPrivateWidowXAdapter(WidowXEnv):
             reward = None
         return obs, reward, obs['env_done'], {}
 
-    def _get_obs(self):
+    def current_obs(self):
         t0 = time.time()
-        full_obs = super()._get_obs()
+        full_obs = super().current_obs()
         processed_images = np.stack([self._get_processed_image(im) for im in full_obs['images']], axis=0)
 
         obs = {'image': processed_images, 'state': self.get_full_state(),
@@ -497,13 +498,13 @@ class FinetuningBridgeDataWidowX(BridgeDataRailRLPrivateWidowX):
         return {}
     
     def get_image(self):
-        return self._get_obs()['image']
+        return self.current_obs()['image']
     
     def reset_previous_qpos(self):
         return self._reset_previous_qpos()
 
     def get_obs(self):
-        return self._get_obs()
+        return self.current_obs()
 
     def set_last_tstep(self):
         self.last_tstep = time.time()
