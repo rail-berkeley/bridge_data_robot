@@ -1,4 +1,4 @@
-from widowx_envs.widowx.widowx_grasp_env import GraspWidowXEnv
+# from widowx_envs.widowx.widowx_grasp_env import GraspWidowXEnv
 from widowx_envs.policies.scripted_reach import ReachPolicy
 from widowx_envs.utils.grasp_utils import (
     compute_robot_transformation_matrix,
@@ -6,8 +6,9 @@ from widowx_envs.utils.grasp_utils import (
     execute_reach
 )
 from widowx_envs.utils.params import WORKSPACE_BOUNDARIES
-from widowx_envs.utils.object_detection import ObjectDetectorKmeans # might need to fix the path for this, and add ViLD too
-#from widowx_envs.widowx.env_wrappers import NormalizedBoxEnv
+from widowx_envs.utils.object_detection.object_detector_kmeans import ObjectDetectorKmeans 
+from widowx_envs.utils.object_detection.object_detector_ViLD import ObjectDetectorViLD 
+from widowx_envs.widowx.widowx_env import BridgeDataRailRLPrivateWidowX
 from tqdm import tqdm
 import numpy as np
 import argparse
@@ -15,6 +16,7 @@ import time
 from sklearn.preprocessing import PolynomialFeatures
 import torch
 from widowx_envs.utils.params import *
+from PIL import Image
 
 def from_numpy(*args, **kwargs):
     return torch.from_numpy(*args, **kwargs).to(device).float()
@@ -49,8 +51,7 @@ def generate_goals(env, retry=0, change_per_retry=0.03, starting_eps=0.03):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--save_dir", type=str, default="")
-    parser.add_argument("-d", "--detector", required=True, choices=('ViLD', 'kmeans', 'dl'), default='ViLD')
-    parser.add_argument("-i", "--id", help='object class ID for the DL detector', required=False, type=str, default=None)
+    parser.add_argument("-d", "--detector", required=False, choices=('ViLD'), default='ViLD')
     parser.add_argument('--skip-move-to-neutral', action='store_true', default=False)
     args = parser.parse_args()
     
@@ -73,12 +74,6 @@ if __name__ == '__main__':
 
     if args.detector == 'ViLD':
         object_detector = ObjectDetectorViLD(env, args.save_dir) 
-    if args.detector == 'kmeans':
-        object_detector = ObjectDetectorKmeans(env, args.save_dir)
-        object_detector.try_make_background_image()
-    elif args.detector == 'dl':
-        object_detector = ObjectDetectorDL(
-            env=env, weights=DL_TARGET_OBJECT_DETECTOR_CHECKPOINT, save_dir=args.save_dir, skip_move_to_neutral=args.skip_move_to_neutral)
     else:
         raise NotImplementedError
 
@@ -88,7 +83,6 @@ if __name__ == '__main__':
     reach_policy = ReachPolicy(env, reach_point=None)
 
     goals = generate_goals(env)
-    object_class_id = args.id
 
     for j in tqdm(range(len(goals))):
         retry = 0
@@ -98,7 +92,7 @@ if __name__ == '__main__':
             env.reset()
             # obs = execute_reach(env, reach_policy, goals[j])
             env._controller.move_to_state(goals[j], 0, duration=3)
-            obs = env._get_obs()
+            obs = env.current_obs()
             input('Press ENTER to calibrate the point')
             before = time.time()
             if not args.skip_move_to_neutral:
@@ -112,20 +106,15 @@ if __name__ == '__main__':
                 continue
 
             img = object_detector._get_image()
-            img = from_numpy(img.transpose(2, 0, 1))
-            img = img[None]
-            centroids = object_detector.get_centroids(img)
-            print('centroids', centroids)
-            if object_class_id is None:
-                assert len(centroids) == 1, "There should be only one object found. If the tray is found, specify '--id' script argument."
-                object_class_id = list(centroids.keys())[0]
-            if object_class_id not in centroids:
-                print("Centroid not detected. Changing the goal position.")
-                retry += 1
-                goals[j] = generate_goals(env, retry=retry)[j]
-                continue
-            robot_coords.append(obs['ee_coord'])
-            rgb_coords.append(centroids[object_class_id])
+            im = Image.fromarray(img)
+            image_path = "calcamtest/current_img.jpeg"
+            im.save(image_path)
+
+            centroids = object_detector.get_centroids(image_path)
+            ee_coord = obs['full_obs']['full_state'][:3]
+            robot_coords.append(ee_coord)
+            rgb_coords.append(centroids[0])
+            print(rgb_coords)
             success = True
 
     print('Robot Coordinates: ')
