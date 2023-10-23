@@ -11,7 +11,7 @@ def compute_robot_transformation_matrix(a, b):
 
 def convert_obs_to_image(obs, transpose=False):
     print("taking picture...")
-    image = np.uint8(np.reshape(obs['image'] * 255, (3, 64, 64)))
+    image = np.uint8(np.reshape(obs['image'] * 255, (3, 128, 128)))
     if transpose: image = np.transpose(image, (1, 2, 0))
     # print("image.shape", image.shape)
     return image
