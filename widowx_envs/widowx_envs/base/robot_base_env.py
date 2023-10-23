@@ -121,7 +121,7 @@ class RobotBaseEnv(BaseEnv):
         default_dict = {'robot_name': None,
                         'robot_controller': WidowX_Controller,
                         'gripper_attached': 'default',
-                        'camera_topics': [IMTopic('/cam0/image_raw', flip=True)],
+                        'camera_topics': [IMTopic('/blue/image_raw', flip=True)],
                         'start_at_neutral': False,
                         'start_at_current_pos': False,
                         'OFFSET_TOL': 0.1,
@@ -386,7 +386,7 @@ class RobotBaseEnv(BaseEnv):
         images = np.zeros((self.ncam, self._height, self._width, 3), dtype=np.uint8)
         for c, img in enumerate(cam_imgs):
             images[c] = img[:, :, ::-1]
-
+            
         return images
 
     def depth_render(self):
