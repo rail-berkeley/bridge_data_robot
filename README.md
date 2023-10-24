@@ -143,9 +143,10 @@ pip install -e .
 Now, we are ready to communicate with the server. To verify that everything is set up correctly run:
 
 ```bash
-# if running the client on a different machine from the server, use `--ip`` to specify the ip address of the server
 python widowx_envs/widowx_env_service.py --client
 ```
+
+This command assumes the server is running on `localhost` (i.e the same machine). If you're running the client on a different machine from the server, use `--ip`` to specify the ip address of the server.
 
 The robot should execute a few predefined movements. See the `bridge_data_v2` evaluation script [here](https://github.com/rail-berkeley/bridge_data_v2/blob/main/experiments/eval.py) for an example of how to send actions to the server. 
 
