@@ -59,6 +59,9 @@ class GripperController(GripperControllerBase):
 
     def get_gripper_pos(self):
         with self._joint_lock:
+            if 'left_finger' not in self._angles:
+                print(" WARNING!! left_finger should be avail in gripper")
+                return 0.0
             return self._angles['left_finger']
 
     def _joint_callback(self, msg):

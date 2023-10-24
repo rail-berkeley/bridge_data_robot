@@ -92,7 +92,7 @@ class ModifiedInterbotixArmXSInterface(InterbotixArmXSInterface):
 
     def set_ee_pose_matrix_fast(self, T_sd, custom_guess=None, execute=True):
         """
-        this version of set_ee_pose_matrix does not set the velocity profie registers in the servos and therefore runs faster
+        this version of set_ee_pose_matrix does not set the velocity profile registers in the servos and therefore runs faster
         """
         if (custom_guess is None):
             initial_guesses = self.initial_guesses
@@ -201,13 +201,14 @@ class WidowX_Controller(RobotControllerBase):
     def set_moving_time(self, moving_time):
         self.bot.arm.set_trajectory_time(moving_time=moving_time*1.25, accel_time=moving_time * 0.5)
 
-    def move_to_eep(self, target_pose, duration=1.5, blocking=True, check_effort=True):
+    def move_to_eep(self, target_pose, duration=1.5, blocking=True, check_effort=True, step=True):
         try:
-            if not blocking:
+            if step and not blocking:
+                # this is a call from the `step` function so we use a custom faster way to set the ee pose
                 solution, success = self.bot.arm.set_ee_pose_matrix_fast(target_pose, custom_guess=self.get_joint_angles(), execute=True)
             else:
                 solution, success = self.bot.arm.set_ee_pose_matrix(target_pose, custom_guess=self.get_joint_angles(),
-                                                                moving_time=duration, accel_time=duration * 0.45)
+                                        moving_time=duration, accel_time=duration * 0.45, blocking=blocking)
             
             self.des_joint_angles = solution
             
