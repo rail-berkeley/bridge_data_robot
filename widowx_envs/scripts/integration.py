@@ -9,18 +9,18 @@ class Integrator:
         self.board_bbox = [0, 0, 0, 0]
         self.board_state = [[" " for _ in range(3)] for _ in range(3)]
         self.transmatrix = []   # NEED TO INITIALIZE
-        self.v = ViLD()
+        #self.v = ViLD()
         self.t = Tic_Tac_Toe()
 
     def initialize_bbox(self, bbox):
         self.board_bbox = bbox
 
-    def initialize_board_state(self, image_path):
-        game_board_str = "square game board"
-        category_name_string = ';'.join(['black circle', 'white circle', game_board_str])
-        category_names = ['background'] + [x.strip() for x in category_name_string.split(';')]
+    def initialize_board_state(self, board_state, bbox, centroids):
+        #game_board_str = "square game board"
+        #category_name_string = ';'.join(['black circle', 'white circle', game_board_str])
+        #category_names = ['background'] + [x.strip() for x in category_name_string.split(';')]
 
-        board_state, bbox, centroids = self.v.get_centroids(image_path, category_names, game_board_str)
+        #board_state, bbox, centroids = self.v.get_centroids(image_path, category_names, game_board_str)
 
         self.query = self.board_state != board_state
         self.board_state = board_state

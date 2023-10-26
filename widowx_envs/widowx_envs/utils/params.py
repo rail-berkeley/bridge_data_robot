@@ -44,6 +44,14 @@ CONTAINER_PROXIMITY_HIGHER_GRASP = {
     'LowPot': {'proximity': 0.1, 'offset': -0.02}
 }
 
+VILD_RGB_TO_ROBOT_TRANSMATRIX = [[1.69240697e-01, -2.93637851e-01], 
+    [1.41947244e-04, 2.69682119e-03], 
+    [1.32481032e-03, 1.03812691e-04], 
+    [-9.20363394e-07, -1.22686759e-06], 
+    [1.71665830e-06, 1.15025817e-07], 
+    [1.72938304e-06, -1.35501846e-06]]
+
+
 ### calibrate_camera.py, object_detector_kmeans.py
 KMEANS_RGB_TO_ROBOT_TRANSMATRIX = [[ 7.59416873e-01, -3.89187872e-01],
     [-1.36140236e-02,  3.30508616e-03],

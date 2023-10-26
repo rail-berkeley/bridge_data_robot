@@ -183,7 +183,11 @@ class ViLD:
         ]
 
         self.game_board_str = "square game board"
-        self.category_name_string = ';'.join(['black circle', 'white circle', self.game_board_str])
+        self.white_piece_str = "white circle"
+        self.black_piece_str = "black circle"
+        #self.calibration_str = "green block"
+        #self.category_name_string = ';'.join([self.calibration_str, self.white_piece_str, self.black_piece_str, self.game_board_str])
+        self.category_name_string = ';'.join([self.white_piece_str, self.black_piece_str, self.game_board_str])
         self.category_names = ['background'] + [x.strip() for x in self.category_name_string.split(';')]
         self.max_boxes_to_draw = 25 #@param {type:"integer"}
 
@@ -202,7 +206,6 @@ class ViLD:
             res = res.rstrip('.')
         return res
 
-
     def build_text_embedding(self, categories):
         if self.FLAGS.prompt_engineering:
             templates = self.multiple_templates
@@ -213,9 +216,9 @@ class ViLD:
 
         with torch.no_grad():
             all_text_embeddings = []
-            #print('Building text embeddings...')
+            print('Building text embeddings...')
             # tqdm categories
-            for category in categories:
+            for category in tqdm(categories):
                 texts = [
                     template.format(self.processed_name(category['name'], rm_dot=True),
                                     article=self.article(category['name']))
@@ -238,7 +241,6 @@ class ViLD:
                 all_text_embeddings = all_text_embeddings.cuda()
 
         return all_text_embeddings.cpu().numpy().T
-
 
     def nms(self, dets, scores, thresh, max_dets=1000):
         """Non-maximum suppression.
@@ -275,386 +277,12 @@ class ViLD:
             order = order[inds + 1]
         return keep
 
-
-    def draw_bounding_box_on_image(self, image, ymin, xmin, ymax, xmax, color='red', thickness=4, display_str_list=(), use_normalized_coordinates=True):
-        draw = ImageDraw.Draw(image)
-        im_width, im_height = image.size
-        if use_normalized_coordinates:
-            (left, right, top, bottom) = (xmin * im_width, xmax * im_width,
-                                        ymin * im_height, ymax * im_height)
-        else:
-            (left, right, top, bottom) = (xmin, xmax, ymin, ymax)
-        draw.line([(left, top), (left, bottom), (right, bottom),
-                    (right, top), (left, top)], width=thickness, fill=color)
-        try:
-            font = ImageFont.truetype('arial.ttf', 24)
-        except IOError:
-            font = ImageFont.load_default()
-
-        # If the total height of the display strings added to the top of the bounding
-        # box exceeds the top of the image, stack the strings below the bounding box
-        # instead of above.
-        # getbbox instead of getsize
-        display_str_heights = [font.getsize(ds)[1] for ds in display_str_list]
-        # Each display_str has a top and bottom margin of 0.05x.
-        total_display_str_height = (1 + 2 * 0.05) * sum(display_str_heights)
-
-        if top > total_display_str_height:
-            text_bottom = top
-        else:
-            text_bottom = bottom + total_display_str_height
-        # Reverse list and print from bottom to top.
-        for display_str in display_str_list[::-1]:
-            text_left = min(5, left)
-            text_width, text_height = font.getsize(display_str)
-            margin = np.ceil(0.05 * text_height)
-            draw.rectangle(
-                [(left, text_bottom - text_height - 2 * margin), (left + text_width,
-                                                                text_bottom)],
-                fill=color)
-            draw.text(
-                (left + margin, text_bottom - text_height - margin),
-                display_str,
-                fill='black',
-                font=font)
-            text_bottom -= text_height - 2 * margin
-
-    def draw_bounding_box_on_image_array(self, image, ymin, xmin, ymax, xmax, color='red', thickness=4, display_str_list=(), use_normalized_coordinates=True):
-        image_pil = Image.fromarray(np.uint8(image)).convert('RGB')
-        self.draw_bounding_box_on_image(image_pil, ymin, xmin, ymax, xmax, color,
-                                    thickness, display_str_list,
-                                    use_normalized_coordinates)
-        np.copyto(image, np.array(image_pil))
-
-
-    def draw_mask_on_image_array(self, image, mask, color='red', alpha=0.4):
-        if image.dtype != np.uint8:
-            raise ValueError('`image` not of type np.uint8')
-        if mask.dtype != np.uint8:
-            raise ValueError('`mask` not of type np.uint8')
-        if np.any(np.logical_and(mask != 1, mask != 0)):
-            raise ValueError('`mask` elements should be in [0, 1]')
-        if image.shape[:2] != mask.shape:
-            raise ValueError('The image has spatial dimensions %s but the mask has '
-                            'dimensions %s' % (image.shape[:2], mask.shape))
-        rgb = ImageColor.getrgb(color)
-        pil_image = Image.fromarray(image)
-
-        solid_color = np.expand_dims(
-            np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
-        pil_solid_color = Image.fromarray(np.uint8(solid_color)).convert('RGBA')
-        pil_mask = Image.fromarray(np.uint8(255.0*alpha*mask)).convert('L')
-        pil_image = Image.composite(pil_solid_color, pil_image, pil_mask)
-        np.copyto(image, np.array(pil_image.convert('RGB')))
-
-
-
-    def visualize_boxes_and_labels_on_image_array(self,
-        image,
-        boxes,
-        classes,
-        scores,
-        category_index,
-        instance_masks=None,
-        instance_boundaries=None,
-        use_normalized_coordinates=False,
-        max_boxes_to_draw=20,
-        min_score_thresh=.5,
-        agnostic_mode=False,
-        line_thickness=4,
-        groundtruth_box_visualization_color='black',
-        skip_scores=False,
-        skip_labels=False,
-        mask_alpha=0.4,
-        plot_color=None,
-    ):
-
-
-        box_to_display_str_map = collections.defaultdict(list)
-        box_to_color_map = collections.defaultdict(str)
-        box_to_instance_masks_map = {}
-        box_to_score_map = {}
-        box_to_instance_boundaries_map = {}
-
-        if not max_boxes_to_draw:
-            max_boxes_to_draw = boxes.shape[0]
-        for i in range(min(max_boxes_to_draw, boxes.shape[0])):
-            if scores is None or scores[i] > min_score_thresh:
-                box = tuple(boxes[i].tolist())
-                if instance_masks is not None:
-                    box_to_instance_masks_map[box] = instance_masks[i]
-                if instance_boundaries is not None:
-                    box_to_instance_boundaries_map[box] = instance_boundaries[i]
-                if scores is None:
-                    box_to_color_map[box] = groundtruth_box_visualization_color
-                else:
-                    display_str = ''
-                    if not skip_labels:
-                        if not agnostic_mode:
-                            if classes[i] in list(category_index.keys()):
-                                class_name = category_index[classes[i]]['name']
-                            else:
-                                class_name = 'N/A'
-                            display_str = str(class_name)
-                    if not skip_scores:
-                        if not display_str:
-                            display_str = '{}%'.format(int(100*scores[i]))
-                        else:
-                            float_score = ("%.2f" % scores[i]).lstrip('0')
-                            display_str = '{}: {}'.format(display_str, float_score)
-                        box_to_score_map[box] = int(100*scores[i])
-
-                    box_to_display_str_map[box].append(display_str)
-                    if plot_color is not None:
-                        box_to_color_map[box] = plot_color
-                    elif agnostic_mode:
-                        box_to_color_map[box] = 'DarkOrange'
-                    else:
-                        box_to_color_map[box] = self.STANDARD_COLORS[
-                        classes[i] % len(self.STANDARD_COLORS)]
-
-        # Handle the case when box_to_score_map is empty.
-        if box_to_score_map:
-            box_color_iter = sorted(
-                box_to_color_map.items(), key=lambda kv: box_to_score_map[kv[0]])
-        else:
-            box_color_iter = box_to_color_map.items()
-
-        # Draw all boxes onto image.
-        for box, color in box_color_iter:
-            ymin, xmin, ymax, xmax = box
-            if instance_masks is not None:
-                self.draw_mask_on_image_array(
-                    image,
-                    box_to_instance_masks_map[box],
-                    color=color,
-                    alpha=mask_alpha
-                )
-            if instance_boundaries is not None:
-                self.draw_mask_on_image_array(
-                    image,
-                    box_to_instance_boundaries_map[box],
-                    color='red',
-                    alpha=1.0
-                )
-            self.draw_bounding_box_on_image_array(
-                image,
-                ymin,
-                xmin,
-                ymax,
-                xmax,
-                color=color,
-                thickness=line_thickness,
-                display_str_list=box_to_display_str_map[box],
-                use_normalized_coordinates=use_normalized_coordinates)
-
-        return image
-
-
-    def paste_instance_masks(self, masks,
-                            detected_boxes,
-                            image_height,
-                            image_width):
-
-        def expand_boxes(boxes, scale):
-            """Expands an array of boxes by a given scale."""
-            # Reference: https://github.com/facebookresearch/Detectron/blob/master/detectron/utils/boxes.py#L227  # pylint: disable=line-too-long
-            # The `boxes` in the reference implementation is in [x1, y1, x2, y2] form,
-            # whereas `boxes` here is in [x1, y1, w, h] form
-            w_half = boxes[:, 2] * .5
-            h_half = boxes[:, 3] * .5
-            x_c = boxes[:, 0] + w_half
-            y_c = boxes[:, 1] + h_half
-
-            w_half *= scale
-            h_half *= scale
-
-            boxes_exp = np.zeros(boxes.shape)
-            boxes_exp[:, 0] = x_c - w_half
-            boxes_exp[:, 2] = x_c + w_half
-            boxes_exp[:, 1] = y_c - h_half
-            boxes_exp[:, 3] = y_c + h_half
-
-            return boxes_exp
-
-    # Reference: https://github.com/facebookresearch/Detectron/blob/master/detectron/core/test.py#L812  # pylint: disable=line-too-long
-    # To work around an issue with cv2.resize (it seems to automatically pad
-    # with repeated border values), we manually zero-pad the masks by 1 pixel
-    # prior to resizing back to the original image resolution. This prevents
-    # "top hat" artifacts. We therefore need to expand the reference boxes by an
-    # appropriate factor.
-        _, mask_height, mask_width = masks.shape
-        scale = max((mask_width + 2.0) / mask_width,
-                    (mask_height + 2.0) / mask_height)
-
-        ref_boxes = expand_boxes(detected_boxes, scale)
-        ref_boxes = ref_boxes.astype(np.int32)
-        padded_mask = np.zeros((mask_height + 2, mask_width + 2), dtype=np.float32)
-        segms = []
-        for mask_ind, mask in enumerate(masks):
-            im_mask = np.zeros((image_height, image_width), dtype=np.uint8)
-            # Process mask inside bounding boxes.
-            padded_mask[1:-1, 1:-1] = mask[:, :]
-
-            ref_box = ref_boxes[mask_ind, :]
-            w = ref_box[2] - ref_box[0] + 1
-            h = ref_box[3] - ref_box[1] + 1
-            w = np.maximum(w, 1)
-            h = np.maximum(h, 1)
-
-            mask = cv2.resize(padded_mask, (w, h))
-            mask = np.array(mask > 0.5, dtype=np.uint8)
-
-            x_0 = min(max(ref_box[0], 0), image_width)
-            x_1 = min(max(ref_box[2] + 1, 0), image_width)
-            y_0 = min(max(ref_box[1], 0), image_height)
-            y_1 = min(max(ref_box[3] + 1, 0), image_height)
-
-            im_mask[y_0:y_1, x_0:x_1] = mask[
-                (y_0 - ref_box[1]):(y_1 - ref_box[1]),
-                (x_0 - ref_box[0]):(x_1 - ref_box[0])
-            ]
-            segms.append(im_mask)
-
-        segms = np.array(segms)
-        assert masks.shape[0] == segms.shape[0]
-        return segms
-
-
-    def show_points(self, coords, labels, ax, marker_size=375):
-        pos_points = coords[labels==1]
-        neg_points = coords[labels==0]
-        ax.scatter(pos_points[:, 0], pos_points[:, 1], color='green', marker='*', s=marker_size, edgecolor='white', linewidth=1.25)
-        ax.scatter(neg_points[:, 0], neg_points[:, 1], color='red', marker='*', s=marker_size, edgecolor='white', linewidth=1.25)
-
-    def show_points_on_image(self, raw_image, input_points, input_labels=None):
-        plt.imshow(raw_image)
-        input_points = np.array(input_points)
-        if input_labels is None:
-            labels = np.ones_like(input_points[:, 0])
-        else:
-            labels = np.array(input_labels)
-        self.show_points(input_points, labels, plt.gca())
-        plt.axis('on')
-        plt.show()
-
     #@title Plot instance masks
-    def plot_mask(self, color, alpha, original_image, mask):
-        rgb = ImageColor.getrgb(color)
-        pil_image = Image.fromarray(original_image)
-
-        solid_color = np.expand_dims(
-            np.ones_like(mask), axis=2) * np.reshape(list(rgb), [1, 1, 3])
-        pil_solid_color = Image.fromarray(np.uint8(solid_color)).convert('RGBA')
-        pil_mask = Image.fromarray(np.uint8(255.0*alpha*mask)).convert('L')
-        pil_image = Image.composite(pil_solid_color, pil_image, pil_mask)
-        img_w_mask = np.array(pil_image.convert('RGB'))
-        return img_w_mask
-
-    def display_image(self, path_or_array, size=(10, 10)):
-        if isinstance(path_or_array, str):
-            image = np.asarray(Image.open(open(path_or_array, 'rb')).convert("RGB"))
-        else:
-            image = path_or_array
-
-        plt.figure(figsize=size)
-        plt.imshow(image)
-        plt.axis('off')
-        plt.show()
-
     def preprocess_categories(self, category_names):
         categories = [{'name': item, 'id': idx+1,} for idx, item in enumerate(category_names)]
         category_indices = {cat['id']: cat for cat in categories}
         fig_size_h = min(max(5, int(len(category_names) / 2.5) ), 10)
         return categories, category_indices, fig_size_h
-
-
-    # Plot detected boxes on the input image
-    def plot_boxes_on_image(self, image, segmentations, rescaled_detection_boxes, detection_masks, image_height,
-                            image_width, indices_fg, valid_indices, detection_roi_scores):
-
-        if len(indices_fg) == 0:
-            self.display_image(np.array(image), size=self.overall_fig_size)
-            print('ViLD does not detect anything belong to the given category')
-
-        else:
-            image_with_detections = self.visualize_boxes_and_labels_on_image_array(
-                np.array(image),
-                rescaled_detection_boxes[indices_fg],
-                valid_indices[:self.max_boxes_to_draw][indices_fg],
-                detection_roi_scores[indices_fg],
-                self.numbered_category_indices,
-                instance_masks=segmentations[indices_fg],
-                use_normalized_coordinates=False,
-                max_boxes_to_draw=self.max_boxes_to_draw,
-                min_score_thresh=self.min_rpn_score_thresh,
-                skip_scores=False,
-                skip_labels=True)
-
-            plt.figure(figsize=self.overall_fig_size)
-            plt.imshow(image_with_detections)
-            plt.axis('off')
-            plt.title('Detected objects and RPN scores')
-            plt.show()
-
-
-    def plot_indiv_detections(self, raw_image, indices, segmentations, category_names, n_boxes, scores_all,
-                          detection_roi_scores, rescaled_detection_boxes, fig_size_h):
-        cnt = 0
-        for anno_idx in indices[0:int(n_boxes)]:
-            rpn_score = detection_roi_scores[anno_idx]
-            bbox = rescaled_detection_boxes[anno_idx]
-            scores = scores_all[anno_idx]
-            if np.argmax(scores) == 0:
-                continue
-
-            y1, x1, y2, x2 = int(np.floor(bbox[0])), int(np.floor(bbox[1])), int(np.ceil(bbox[2])), int(np.ceil(bbox[3]))
-            img_w_mask = self.plot_mask(self.mask_color, self.alpha, raw_image, segmentations[anno_idx])
-            crop_w_mask = img_w_mask[y1:y2, x1:x2, :]
-
-
-            fig, axs = plt.subplots(1, 4, figsize=(self.fig_size_w, fig_size_h), gridspec_kw={'width_ratios': [3, 1, 1, 2]}, constrained_layout=True)
-
-            # Draw bounding box.
-            rect = patches.Rectangle((x1, y1), x2-x1, y2-y1, linewidth=self.line_thickness, edgecolor='r', facecolor='none')
-            axs[0].add_patch(rect)
-
-            axs[0].set_xticks([])
-            axs[0].set_yticks([])
-            axs[0].set_title(f'bbox: {y1, x1, y2, x2} area: {(y2 - y1) * (x2 - x1)} rpn score: {rpn_score:.4f}')
-            axs[0].imshow(raw_image)
-
-            # Draw image in a cropped region.
-            crop = np.copy(raw_image[y1:y2, x1:x2, :])
-            axs[1].set_xticks([])
-            axs[1].set_yticks([])
-
-            axs[1].set_title(f'predicted: {category_names[np.argmax(scores)]}')
-            axs[1].imshow(crop)
-
-            # Draw segmentation inside a cropped region.
-            axs[2].set_xticks([])
-            axs[2].set_yticks([])
-            axs[2].set_title('mask')
-            axs[2].imshow(crop_w_mask)
-
-            # Draw category scores.
-            fontsize = max(min(fig_size_h / float(len(category_names)) * 45, 20), 8)
-            for cat_idx in range(len(category_names)):
-                axs[3].barh(cat_idx, scores[cat_idx],
-                        color='orange' if scores[cat_idx] == max(scores) else 'blue')
-            axs[3].invert_yaxis()
-            axs[3].set_axisbelow(True)
-            axs[3].set_xlim(0, 1)
-            plt.xlabel("confidence score")
-            axs[3].set_yticks(range(len(category_names)))
-            axs[3].set_yticklabels(category_names, fontdict={
-                'fontsize': fontsize})
-
-            cnt += 1
-            # fig.tight_layout()
-        return cnt
-
 
     def main_fxn(self, image_path, category_names, params):
   #################################################################
@@ -742,7 +370,7 @@ class ViLD:
         # Get bounding boxes and segmentations
         ymin, xmin, ymax, xmax = np.split(rescaled_detection_boxes, 4, axis=-1)
         processed_boxes = np.concatenate([xmin, ymin, xmax - xmin, ymax - ymin], axis=-1)
-        segmentations = self.paste_instance_masks(detection_masks, processed_boxes, image_height, image_width)
+        #segmentations = self.paste_instance_masks(detection_masks, processed_boxes, image_height, image_width)
 
         #################################################################
         # Plot detected boxes on the input image
@@ -760,8 +388,6 @@ class ViLD:
         return processed_boxes, indices, scores_all, n_boxes, detection_roi_scores
         #, detection_roi_scores, rescaled_detection_boxes, segmentations, raw_image, fig_size_h
 
-
-
     def get_best_bbox(self, n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, category):
         max_rpn_score = 0
         max_idx = -1
@@ -773,7 +399,6 @@ class ViLD:
                 if rpn_score > max_rpn_score:
                     max_rpn_score, max_idx = rpn_score, anno_idx
         return processed_boxes[max_idx]
-
 
     # Given a bounding box representing the edges of the board, return
 # the "letter-number" notation of the piece centered at piece_x, piece_x
@@ -787,10 +412,10 @@ class ViLD:
 
         return col + str(row)
 
+    # Checks to see whether or not the center of the piece is within the bounds of the board's bounding box
     def is_on_board(self, board_bbox, piece_x, piece_y):
         top_left_x, top_left_y, width, height = board_bbox[0], board_bbox[1], board_bbox[2], board_bbox[3]
         return piece_x > top_left_x and piece_x < top_left_x + width and piece_y > top_left_y and piece_y < top_left_y + height
-
 
     def print_board(self, board_state):
         print("  A B C")
@@ -822,13 +447,28 @@ class ViLD:
             board_state[row][col] = board_state_dict[letter_number]
         return board_state
 
+    # gets the centroids of calibration piece
+    """def get_centroids(self, image_path, category_names, game_board_str):
+        params = self.max_boxes_to_draw, self.nms_threshold, self.min_rpn_score_thresh, self.min_box_area
+        processed_boxes, indices, scores_all, n_boxes, detection_roi_scores = self.main_fxn(image_path, category_names, params)
+        centroids = []
+
+        for anno_idx in indices[0:int(n_boxes)]:
+            scores = scores_all[anno_idx]
+            top_category = category_names[np.argmax(scores)]
+            print(top_category)
+            bbox = processed_boxes[anno_idx]
+            center_x, center_y = (2 * bbox[0] + bbox[2]) / 2, (2 * bbox[1] + bbox[3]) / 2
+            if top_category == self.calibration_str:
+                centroids.append([center_x, center_y])
+
+        return centroids"""
+    
     def get_centroids(self, image_path, category_names, game_board_str):
         # let's assume that white pieces are Xs and black pieces are Os
         params = self.max_boxes_to_draw, self.nms_threshold, self.min_rpn_score_thresh, self.min_box_area
         processed_boxes, indices, scores_all, n_boxes, detection_roi_scores = self.main_fxn(image_path, category_names, params)
 
-        board_state = [['-' for _ in range(3)] for _ in range(3)]
-        raw_image = np.asarray(Image.open(open(image_path, 'rb')).convert("RGB"))
         num_x_off_board = 0
         num_o_off_board = 0
         board_bbox = self.get_best_bbox(n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, game_board_str)
@@ -842,30 +482,28 @@ class ViLD:
             if top_category != game_board_str:
                 bbox = processed_boxes[anno_idx]
                 center_x, center_y = (2 * bbox[0] + bbox[2]) / 2, (2 * bbox[1] + bbox[3]) / 2
-                if top_category == "white circle":
+                if top_category == self.white_piece_str:
                     if bbox[2] * bbox[3] > ((board_bbox[2])/3) * ((board_bbox[3])/3):
                       continue
                     if self.is_on_board(board_bbox, center_x, center_y):
                         board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = 'X'
-                    # show_points_on_image(raw_image, [[center_x, center_y]])
-                        centroids.append([center_x, center_y])
                     else:
-                        centroids.append([center_x, center_y])
                         num_x_off_board += 1
-                elif top_category == "black circle":
+                    centroids.append([center_x, center_y])
+                elif top_category == self.black_piece_str:
                     if bbox[2] * bbox[3] > ((board_bbox[2])/3) * ((board_bbox[3])/3):
                       continue
                     if self.is_on_board(board_bbox, center_x, center_y):
                         board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = 'O'
-                        centroids.append([center_x, center_y])
                     else:
-                        centroids.append([center_x, center_y])
                         num_o_off_board += 1
+                    centroids.append([center_x, center_y])
+                #elif top_category == self.calibration_str:
+                #    centroids.append([center_x, center_y])
 
         #print(board_state_dict)
         #self.print_board_dict(board_state_dict)
-        #print(f"There are {num_x_off_board} white pieces (Xs) and {num_o_off_board} black pieces (Os) not on the board.")
+        print(f"There are {num_x_off_board} white pieces (Xs) and {num_o_off_board} black pieces (Os) not on the board.")
 
         #print("Centroids:", centroids)
-
         return self.get_board_state(board_state_dict), board_bbox, centroids
