@@ -1,5 +1,6 @@
 from widowx_envs.utils.object_detection.object_detector import ObjectDetector
 from scripts.ViLD import ViLD
+from PIL import Image
 
 
 class ObjectDetectorViLD(ObjectDetector):
@@ -15,9 +16,11 @@ class ObjectDetectorViLD(ObjectDetector):
         self.category_names = ['background'] + [x.strip() for x in self.category_name_string.split(';')]
         self.v = ViLD() 
 
-    def get_centroids(self, image_path): # need to change
-        return self.v.get_centroids(image_path, self.category_names, self.game_board_str)
-        # return self.i.centroids
+    def get_results(self, img): 
+        im = Image.fromarray(img)
+        image_path = self.save_dir + "camera_obs.jpeg"
+        im.save(image_path)
+        return self.v.get_results(image_path, self.category_names, self.game_board_str)
 
-    def initialize_integrator(self, i):
-        self.i = i
+    def get_centroids(self, img): 
+        return self.get_results(img)[2]

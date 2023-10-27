@@ -1,6 +1,6 @@
 
 from widowx_envs.utils.grasp_utils import rgb_to_robot_coords, get_image
-from widowx_envs.utils.params import (KMEANS_RGB_TO_ROBOT_TRANSMATRIX,
+from widowx_envs.utils.params import (VILD_RGB_TO_ROBOT_TRANSMATRIX, KMEANS_RGB_TO_ROBOT_TRANSMATRIX,
     DL_RGB_TO_ROBOT_TRANSMATRIX)
 import numpy as np
 
@@ -15,7 +15,7 @@ class ObjectDetector:
         self.skip_move_to_neutral = skip_move_to_neutral
 
         if self.detector_type == 'ViLD':
-            self.transmatrix = KMEANS_RGB_TO_ROBOT_TRANSMATRIX # need to change 
+            self.transmatrix = VILD_RGB_TO_ROBOT_TRANSMATRIX
         elif self.detector_type == 'kmeans':
             self.transmatrix = KMEANS_RGB_TO_ROBOT_TRANSMATRIX
         elif self.detector_type == 'dl':

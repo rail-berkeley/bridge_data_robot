@@ -464,7 +464,7 @@ class ViLD:
 
         return centroids"""
     
-    def get_centroids(self, image_path, category_names, game_board_str):
+    def get_results(self, image_path, category_names, game_board_str):
         # let's assume that white pieces are Xs and black pieces are Os
         params = self.max_boxes_to_draw, self.nms_threshold, self.min_rpn_score_thresh, self.min_box_area
         processed_boxes, indices, scores_all, n_boxes, detection_roi_scores = self.main_fxn(image_path, category_names, params)
@@ -474,7 +474,7 @@ class ViLD:
         board_bbox = self.get_best_bbox(n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, game_board_str)
         board_state_dict = {}
 
-        centroids = []
+        centroids = dict() 
 
         for anno_idx in indices[0:int(n_boxes)]:
             scores = scores_all[anno_idx]
@@ -489,7 +489,7 @@ class ViLD:
                         board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = 'X'
                     else:
                         num_x_off_board += 1
-                    centroids.append([center_x, center_y])
+                    centroids[anno_idx] = np.array([center_x, center_y])
                 elif top_category == self.black_piece_str:
                     if bbox[2] * bbox[3] > ((board_bbox[2])/3) * ((board_bbox[3])/3):
                       continue
@@ -497,7 +497,7 @@ class ViLD:
                         board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = 'O'
                     else:
                         num_o_off_board += 1
-                    centroids.append([center_x, center_y])
+                    centroids[anno_idx] = np.array([center_x, center_y])
                 #elif top_category == self.calibration_str:
                 #    centroids.append([center_x, center_y])
 
