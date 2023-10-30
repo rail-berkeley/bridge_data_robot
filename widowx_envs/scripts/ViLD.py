@@ -182,13 +182,13 @@ class ViLD:
             'WhiteSmoke', 'Yellow', 'YellowGreen'
         ]
 
-        self.game_board_str = "square game board"
-        self.white_piece_str = "white circle"
-        self.black_piece_str = "black circle"
+        #self.game_board_str = "square game board"
+        #self.white_piece_str = "white circle"
+        #self.black_piece_str = "black circle"
         #self.calibration_str = "green block"
         #self.category_name_string = ';'.join([self.calibration_str, self.white_piece_str, self.black_piece_str, self.game_board_str])
-        self.category_name_string = ';'.join([self.white_piece_str, self.black_piece_str, self.game_board_str])
-        self.category_names = ['background'] + [x.strip() for x in self.category_name_string.split(';')]
+        #self.category_name_string = ';'.join([self.white_piece_str, self.black_piece_str, self.calibration_str, self.game_board_str])
+        #self.category_names = ['background'] + [x.strip() for x in self.category_name_string.split(';')]
         self.max_boxes_to_draw = 25 #@param {type:"integer"}
 
         self.nms_threshold = 0.6 #@param {type:"slider", min:0, max:0.9, step:0.05}
@@ -388,18 +388,21 @@ class ViLD:
         return processed_boxes, indices, scores_all, n_boxes, detection_roi_scores
         #, detection_roi_scores, rescaled_detection_boxes, segmentations, raw_image, fig_size_h
 
-    def get_best_bbox(self, n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, category):
+    def get_best_bbox(self, n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, category, category_names):
         max_rpn_score = 0
         max_idx = -1
         for anno_idx in indices[0:int(n_boxes)]:
             scores = scores_all[anno_idx]
-            top_category = self.category_names[np.argmax(scores)]
+            top_category = category_names[np.argmax(scores)]
             if top_category == category:
                 rpn_score = detection_roi_scores[anno_idx]
                 if rpn_score > max_rpn_score:
                     max_rpn_score, max_idx = rpn_score, anno_idx
-        return processed_boxes[max_idx]
-
+        
+        if max_idx != -1: 
+            return processed_boxes[max_idx]
+        return np.array([])
+    
     # Given a bounding box representing the edges of the board, return
 # the "letter-number" notation of the piece centered at piece_x, piece_x
     def get_square_num(self, board_bbox, piece_x, piece_y):
@@ -441,6 +444,8 @@ class ViLD:
         self.print_board(board_state)
 
     def get_board_state(self, board_state_dict):
+        if not board_state_dict:
+            return None 
         board_state = [[' ' for _ in range(3)] for _ in range(3)]
         for letter_number in board_state_dict.keys():
             row, col = self.letter_number_to_row_col(letter_number)
@@ -464,46 +469,64 @@ class ViLD:
 
         return centroids"""
     
-    def get_results(self, image_path, category_names, game_board_str):
-        # let's assume that white pieces are Xs and black pieces are Os
+    """def get_results2(self, image_path, category_names, game_board_str): 
         params = self.max_boxes_to_draw, self.nms_threshold, self.min_rpn_score_thresh, self.min_box_area
         processed_boxes, indices, scores_all, n_boxes, detection_roi_scores = self.main_fxn(image_path, category_names, params)
 
         num_x_off_board = 0
         num_o_off_board = 0
-        board_bbox = self.get_best_bbox(n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, game_board_str)
-        board_state_dict = {}
-
         centroids = dict() 
 
         for anno_idx in indices[0:int(n_boxes)]:
             scores = scores_all[anno_idx]
             top_category = category_names[np.argmax(scores)]
-            if top_category != game_board_str:
+            bbox = processed_boxes[anno_idx]
+            center_x, center_y = (2 * bbox[0] + bbox[2]) / 2, (2 * bbox[1] + bbox[3]) / 2
+            if top_category == self.white_piece_str:
+                num_x_off_board += 1
+                centroids["white_circle" + str(num_x_off_board)] = np.array([center_x, center_y])
+            elif top_category == self.black_piece_str:
+                num_o_off_board += 1
+                centroids["black_circle" + str(num_x_off_board)] = np.array([center_x, center_y])
+            elif top_category == self.calibration_str:
+                num_o_off_board += 1
+                centroids["green_block" + str(num_x_off_board)] = np.array([center_x, center_y])
+
+        return centroids"""
+
+
+    
+    def get_results(self, image_path, piece_mappings, game_board_str):
+        piece_names = list(piece_mappings.keys())        
+        category_names = ['background'] + piece_names + [game_board_str]
+        params = self.max_boxes_to_draw, self.nms_threshold, self.min_rpn_score_thresh, self.min_box_area
+        processed_boxes, indices, scores_all, n_boxes, detection_roi_scores = self.main_fxn(image_path, category_names, params)
+        off_piece_counts = {key: 0 for key in piece_names}
+
+        board_bbox = self.get_best_bbox(n_boxes, processed_boxes, indices, scores_all, detection_roi_scores, game_board_str, category_names)
+
+        if not board_bbox.any():
+            print("No board found!")
+
+        board_state_dict = {}
+
+        valid_centroids = dict() 
+
+        for anno_idx in indices[0:int(n_boxes)]:
+            scores = scores_all[anno_idx]
+            top_category = category_names[np.argmax(scores)]
+            if top_category != game_board_str and top_category != 'background':
                 bbox = processed_boxes[anno_idx]
+                if board_bbox.any() and (bbox[2] * bbox[3] > ((board_bbox[2])/3) * ((board_bbox[3])/3)):
+                      continue
                 center_x, center_y = (2 * bbox[0] + bbox[2]) / 2, (2 * bbox[1] + bbox[3]) / 2
-                if top_category == self.white_piece_str:
-                    if bbox[2] * bbox[3] > ((board_bbox[2])/3) * ((board_bbox[3])/3):
-                      continue
-                    if self.is_on_board(board_bbox, center_x, center_y):
-                        board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = 'X'
-                    else:
-                        num_x_off_board += 1
-                    centroids[anno_idx] = np.array([center_x, center_y])
-                elif top_category == self.black_piece_str:
-                    if bbox[2] * bbox[3] > ((board_bbox[2])/3) * ((board_bbox[3])/3):
-                      continue
-                    if self.is_on_board(board_bbox, center_x, center_y):
-                        board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = 'O'
-                    else:
-                        num_o_off_board += 1
-                    centroids[anno_idx] = np.array([center_x, center_y])
-                #elif top_category == self.calibration_str:
-                #    centroids.append([center_x, center_y])
+                if board_bbox.any() and self.is_on_board(board_bbox, center_x, center_y): 
+                    board_state_dict[self.get_square_num(board_bbox, center_x, center_y)] = piece_mappings[top_category]
+                else: 
+                    off_piece_counts[top_category] = off_piece_counts[top_category] + 1
+                    valid_centroids[top_category + str(anno_idx)] = np.array([center_x, center_y])
 
-        #print(board_state_dict)
-        #self.print_board_dict(board_state_dict)
-        print(f"There are {num_x_off_board} white pieces (Xs) and {num_o_off_board} black pieces (Os) not on the board.")
+        for x in off_piece_counts:
+            print("There are " + str(off_piece_counts[x]) + " " + x + "s not on the board.")
 
-        #print("Centroids:", centroids)
-        return self.get_board_state(board_state_dict), board_bbox, centroids
+        return self.get_board_state(board_state_dict), board_bbox, valid_centroids

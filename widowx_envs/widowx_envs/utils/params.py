@@ -10,8 +10,8 @@ PICK_POINTS = [[0.19, X_MARGIN + X_THRESH, 0.032],
 WORKSPACE_BOUNDARIES = [[0.19, -0.16, 0.029, -0.75, 0],
                         [0.36, 0.12, 0.17, 0.75, 0]]
 
-NEW_WORKSPACE_BOUNDARIES = [[0.05, -0.20, 0.029, -0.75, 0],
-                        [0.59, 0.12, 0.17, 0.75, 0]]
+TIC_TAC_TOE_WORKSPACE_BOUNDARIES = [[0.19, -0.16, 0.029, -0.75, 0],
+                        [0.60, 0.12, 0.17, 0.75, 0]]
 
 PERIMETER_SWEEP_WORKSPACE_BOUNDARIES = [[0.16, -0.17, 0.029, -1.57, 0],
                         				[0.38, 0.12, 0.17,  1.57, 0]]
@@ -48,12 +48,12 @@ CONTAINER_PROXIMITY_HIGHER_GRASP = {
     'LowPot': {'proximity': 0.1, 'offset': -0.02}
 }
 
-VILD_RGB_TO_ROBOT_TRANSMATRIX = [[1.69240697e-01, -2.93637851e-01], 
-    [1.41947244e-04, 2.69682119e-03], 
-    [1.32481032e-03, 1.03812691e-04], 
-    [-9.20363394e-07, -1.22686759e-06], 
-    [1.71665830e-06, 1.15025817e-07], 
-    [1.72938304e-06, -1.35501846e-06]]
+VILD_RGB_TO_ROBOT_TRANSMATRIX = [[1.86458763e-01, -2.65330020e-01], 
+    [-2.53418603e-04, 1.18623271e-03], 
+    [1.1491619e-03, 1.50029106e-04], 
+    [9.14574675e-07, 2.45525262e-08], 
+    [-1.94619032e-06, -4.27330438e-07], 
+    [9.51640060e-07, -3.52438397e-07]]
 
 ### calibrate_camera.py, object_detector_kmeans.py
 KMEANS_RGB_TO_ROBOT_TRANSMATRIX = [[ 7.59416873e-01, -3.89187872e-01],

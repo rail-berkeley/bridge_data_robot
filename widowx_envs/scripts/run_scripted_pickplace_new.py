@@ -24,34 +24,18 @@ INITIAL_GRIPPER_CLOSE_PROB = 0.5
 
 logging.getLogger('robot_logger').setLevel(logging.WARN)
 
-def log_floor_height(save_dir, conf):
-    hyperparams = imp.load_source('hyperparams', conf).config
-    hyperparams['log_dir'] = "."
-    meta_data_dict = json.load(open(hyperparams['collection_metadata'], 'r'))
-    meta_data_dict['date_time'] = datetime.now().strftime("_%Y-%m-%d_%H-%M-%S")
-    s = TrajectoryCollector(hyperparams)
-    print('#################################################')
-    print('#################################################')
-    print("Move the gripper all the way to the lowest point of the workspace and end the trajectory.")
-    _, obs_dict, _ = s.agent.sample(s.policies[0], 0)
-    floor_height = np.min(obs_dict['full_state'][:, 2])
-    meta_data_dict['floor_height'] = floor_height
-    with open(os.path.join(save_dir, "collection_metadata.json"), 'w') as outfile:
-        json.dump(meta_data_dict, outfile)
-
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     # parser.add_argument('teleop_conf', type=str, help='Path to teleop conf.')
     parser.add_argument("-o", "--object")
-    parser.add_argument("-r", "--random-object-selection", default=True)
+    #parser.add_argument("-r", "--random-object-selection", default=True)
     parser.add_argument("-d", "--data-save-directory", type=str,
                         default="pickplacetest/")
     parser.add_argument("-i", "--image_save_directory", type=str, default='calcamtest/')
     parser.add_argument("--detector", choices=('kmeans', 'dl', 'manual', 'ViLD'), default='ViLD')
     parser.add_argument("--tsteps", type=int, default=50)
-    parser.add_argument("--num-trajectories", type=int, default=50000)
+    parser.add_argument("--num-trajectories", type=int, default=2)
     parser.add_argument("--action-noise", type=float, default=0.005)
 
     args = parser.parse_args()
@@ -78,7 +62,6 @@ if __name__ == '__main__':
 
     if args.detector == 'ViLD':
         object_detector = ObjectDetectorViLD(env, save_dir=args.image_save_directory)
-        transmatrix = VILD_RGB_TO_ROBOT_TRANSMATRIX 
     else:
         raise NotImplementedError
 
@@ -105,8 +88,10 @@ if __name__ == '__main__':
             centroids = object_detector.go_neutral_and_get_all_centers(transform=True)
             print("DETECTED OBJECTS", centroids)
             keys = list(centroids.keys())
+            keys = [x for x in keys if grasp_object_name in x]
             pick_point = centroids[keys[0]]
             #pick_point = centroids[grasp_object_name]
+            print(pick_point)
             print('PICKING UP ' + str(keys[0]))
         else:
             raise ValueError("must specify object name or set random object selection to True")
@@ -114,10 +99,10 @@ if __name__ == '__main__':
         #drop_point_z = np.random.uniform(DROP_POINT_Z_RANGE[0], DROP_POINT_Z_RANGE[1])
         #pick_point_z = np.random.uniform(PICK_POINT_Z_RANGE[0], PICK_POINT_Z_RANGE[1])
 
-        keys = list(centroids.keys())
-        drop_point = centroids[keys[1]]
+        #keys = list(centroids.keys())
+        drop_point = np.array([0.20, 0.1])
         drop_point_z = DROP_POINT_Z
-        pick_point_z = 0.5
+        pick_point_z = PICK_POINT_Z
         pick_point = np.append(pick_point, pick_point_z)
         drop_point = np.append(drop_point, drop_point_z)
 
