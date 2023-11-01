@@ -165,3 +165,5 @@ code
 # ViLD stuff
 image_path_v2/
 experiments/bgbot/
+widowx_envs/scripts/pickplacetest
+widowx_envs/scripts/calcamtest
