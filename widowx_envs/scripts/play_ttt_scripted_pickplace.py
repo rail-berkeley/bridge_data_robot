@@ -43,7 +43,7 @@ env_params = {
     'move_duration': 0.2,
     'adaptive_wait': True,
     'move_to_rand_start_freq': 1,
-    'override_workspace_boundaries': WORKSPACE_BOUNDARIES,
+    'override_workspace_boundaries': TIC_TAC_TOE_WORKSPACE_BOUNDARIES,
     'action_clipping': 'xyz',
     'catch_environment_except': False,
     'randomize_initpos': 'restricted_space',
@@ -97,7 +97,7 @@ while z!=1:
         else:
             raise ValueError("must specify object name or set random object selection to True")
         
-        #drop_point = np.array([0.20, 0.1])
+        #drop_point = np.array([0.50, 0.1])
         drop_point_z = PICK_POINT_Z
         pick_point_z = PICK_POINT_Z
         pick_point = np.append(pick_point, pick_point_z)
@@ -116,6 +116,7 @@ while z!=1:
 
         j = 0 
         last_tstep = time.time()
+        #env.reset() 
         while j < args.tsteps:
             if time.time() > last_tstep + STEP_DURATION:
                 last_tstep = time.time()

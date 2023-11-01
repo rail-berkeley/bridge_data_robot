@@ -51,7 +51,7 @@ if __name__ == '__main__':
         'move_duration': 0.2,
         'adaptive_wait': True,
         'move_to_rand_start_freq': 1,
-        'override_workspace_boundaries': WORKSPACE_BOUNDARIES,
+        'override_workspace_boundaries': TIC_TAC_TOE_WORKSPACE_BOUNDARIES,
         'action_clipping': 'xyz',
         'catch_environment_except': False,
         'randomize_initpos': 'restricted_space',
@@ -119,6 +119,7 @@ if __name__ == '__main__':
 
         j = 0 
         last_tstep = time.time()
+        env.reset() 
         while j < args.tsteps:
             if time.time() > last_tstep + STEP_DURATION:
                 last_tstep = time.time()

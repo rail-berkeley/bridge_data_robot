@@ -5,8 +5,7 @@ from widowx_envs.utils.grasp_utils import (
     rgb_to_robot_coords,
     execute_reach
 )
-from widowx_envs.utils.params import WORKSPACE_BOUNDARIES
-from widowx_envs.utils.object_detection.object_detector_kmeans import ObjectDetectorKmeans 
+from widowx_envs.utils.params import *
 from widowx_envs.utils.object_detection.object_detector_ViLD import ObjectDetectorViLD 
 from widowx_envs.widowx.widowx_env import BridgeDataRailRLPrivateWidowX
 from tqdm import tqdm
@@ -17,6 +16,8 @@ from sklearn.preprocessing import PolynomialFeatures
 import torch
 from widowx_envs.utils.params import *
 from PIL import Image
+
+BOUNDS = TIC_TAC_TOE_WORKSPACE_BOUNDARIES
 
 def from_numpy(*args, **kwargs):
     return torch.from_numpy(*args, **kwargs).to(device).float()
@@ -33,8 +34,8 @@ def generate_goals(env, retry=0, change_per_retry=0.03, starting_eps=0.03):
     reach_point_z = 0.03
     
     eps = starting_eps + retry * change_per_retry
-    x_lo, x_hi = WORKSPACE_BOUNDARIES[0][0] + eps, WORKSPACE_BOUNDARIES[1][0] - eps
-    y_lo, y_hi = WORKSPACE_BOUNDARIES[0][1] + eps, WORKSPACE_BOUNDARIES[1][1] - eps
+    x_lo, x_hi = BOUNDS[0][0] + eps, BOUNDS[1][0] - eps
+    y_lo, y_hi = BOUNDS[0][1] + eps, BOUNDS[1][1] - eps
     goals = [
             [x_lo, y_hi, reach_point_z],
             [0.5 * (x_lo + x_hi), y_hi, reach_point_z],
@@ -50,7 +51,7 @@ def generate_goals(env, retry=0, change_per_retry=0.03, starting_eps=0.03):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-s", "--save_dir", type=str, default="")
+    parser.add_argument("-s", "--save_dir", type=str, default="calcamtest/")
     parser.add_argument("-d", "--detector", required=False, choices=('ViLD'), default='ViLD')
     parser.add_argument('--skip-move-to-neutral', action='store_true', default=False)
     args = parser.parse_args()
@@ -63,14 +64,14 @@ if __name__ == '__main__':
         'move_duration': 0.2,
         'adaptive_wait': True,
         'move_to_rand_start_freq': 1,
-        'override_workspace_boundaries': WORKSPACE_BOUNDARIES,
+        'override_workspace_boundaries': BOUNDS,
         'action_clipping': 'xyz',
         'catch_environment_except': False,
         'randomize_initpos': 'restricted_space',
         'skip_move_to_neutral': True,
         'return_full_image': True
     }
-    env = BridgeDataRailRLPrivateWidowX(env_params, fixed_image_size=128)
+    env = BridgeDataRailRLPrivateWidowX(env_params, fixed_image_size=512)
 
     if args.detector == 'ViLD':
         object_detector = ObjectDetectorViLD(env, args.save_dir) 
@@ -84,6 +85,10 @@ if __name__ == '__main__':
 
     goals = generate_goals(env)
 
+    print("GOALS:", goals)
+
+    # env._controller.move_to_state([0.30, 0, 0.15],0, 3)
+
     for j in tqdm(range(len(goals))):
         retry = 0
         success = False
@@ -91,6 +96,7 @@ if __name__ == '__main__':
             # import ipdb; ipdb.set_trace()
             env.reset()
             # obs = execute_reach(env, reach_policy, goals[j])
+            env._controller.move_to_state([0.30, 0, 0.15], 0, 3)
             env._controller.move_to_state(goals[j], 0, duration=3)
             obs = env.current_obs()
             input('Press ENTER to calibrate the point')
@@ -106,15 +112,16 @@ if __name__ == '__main__':
                 continue
 
             img = object_detector._get_image()
-            im = Image.fromarray(img)
-            image_path = "calcamtest/current_img.jpeg"
-            im.save(image_path)
 
-            centroids = object_detector.get_centroids(image_path)
+            print("Current Goal:", goals[j])
+            centroids = object_detector.get_centroids(img)
+            print("DETECTED OBJECTS:", centroids)
             ee_coord = obs['full_obs']['full_state'][:3]
             robot_coords.append(ee_coord)
-            rgb_coords.append(centroids[0])
-            print(rgb_coords)
+            keys = list(centroids.keys())
+            keys = [x for x in keys if "white circle" in x]
+            rgb_coords.append(centroids[keys[0]])
+            #print(rgb_coords)
             success = True
 
     print('Robot Coordinates: ')
