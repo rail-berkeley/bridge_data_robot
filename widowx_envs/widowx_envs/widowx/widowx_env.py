@@ -53,7 +53,9 @@ class WidowXEnv(RobotBaseEnv):
             self._controller.move_to_neutral(duration=1.5)
 
         if itraj is None:
-            self.move_to_startstate()
+            # self.move_to_startstate()
+            self.move_to_neutral()
+
         else:
             if self._hp.move_to_rand_start_freq != -1:
                 if itraj % self._hp.move_to_rand_start_freq == 0:
