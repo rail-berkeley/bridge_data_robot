@@ -5,6 +5,7 @@ from widowx_envs.widowx.widowx_env import BridgeDataRailRLPrivateWidowX
 from PIL import Image
 import time 
 from widowx_envs.policies.scripted_pickplace import PickPlacePolicy
+from widowx_envs.utils.grasp_utils import rgb_to_robot_coords
 from widowx_envs.utils.exceptions import Environment_Exception
 import numpy as np
 import os
@@ -25,7 +26,7 @@ parser.add_argument("-o", "--object")
 parser.add_argument("-d", "--data-save-directory", type=str, default="pickplacetest/")
 parser.add_argument("-i", "--image_save_directory", type=str, default='calcamtest/')
 parser.add_argument("--detector", choices=('kmeans', 'dl', 'manual', 'ViLD'), default='ViLD')
-parser.add_argument("--tsteps", type=int, default=50)
+parser.add_argument("--tsteps", type=int, default=75)
 parser.add_argument("--action-noise", type=float, default=0.005)
 
 
@@ -62,7 +63,7 @@ scripted_policy = PickPlacePolicy(env)
 consecutive_detection_failures = 0
 
 z = 0 
-while z!=1: 
+while True: 
     img = object_detector._get_image()
     board_state, bbox, centroids = object_detector.get_results(img)
     if not board_state:
@@ -78,6 +79,7 @@ while z!=1:
         
         print("Starting Trajectory")
         obs = env.reset()
+        env._controller.move_to_state([0.30, 0, 0.15], 0, 3)
         env.start()
         
         if np.random.rand() < INITIAL_GRIPPER_CLOSE_PROB:
@@ -89,9 +91,13 @@ while z!=1:
 
         if args.object:
             grasp_object_name = args.object
-            centroids = object_detector.go_neutral_and_get_all_centers(transform=True) 
+            #centroids = object_detector.go_neutral_and_get_all_centers(transform=True) 
             print("DETECTED OBJECTS", centroids)
             keys = [x for x in list(centroids.keys()) if grasp_object_name in x]
+
+            for key in keys:
+                centroids[key] = rgb_to_robot_coords(centroids[key], VILD_RGB_TO_ROBOT_TRANSMATRIX)
+
             pick_point = centroids[keys[0]]
             print('PICKING UP ' + str(keys[0]))
         else:
@@ -104,9 +110,9 @@ while z!=1:
         drop_point = np.append(drop_point, drop_point_z)
 
         scripted_policy.reset(pick_point=pick_point, drop_point=drop_point, initial_gripper=initial_gripper)
-        current_save_dir = os.path.join(save_dir, f"raw/traj_group0/traj{i}")
+        current_save_dir = os.path.join(save_dir, f"raw/traj_group0/traj{z}")
         image_save_dir = os.path.join(current_save_dir, "images0")
-        os.makedirs(image_save_dir)
+        # os.makedirs(image_save_dir)
 
         full_image = obs['full_image'][0]
 
@@ -132,7 +138,7 @@ while z!=1:
 
                 im = Image.fromarray(full_image)
                 imfilepath = os.path.join(image_save_dir, '{}.jpeg'.format(j))
-                im.save(imfilepath)
+                # im.save(imfilepath)
 
                 obs['full_obs'].pop('images')
                 observations.append(obs['full_obs'])
@@ -144,17 +150,20 @@ while z!=1:
                 j += 1
 
         # save final obs 
-        im = Image.fromarray(full_image)
-        imfilepath = os.path.join(current_save_dir, 'images0/{}.jpeg'.format(j))
-        im.save(imfilepath)
+        # im = Image.fromarray(full_image)
+        # imfilepath = os.path.join(current_save_dir, 'images0/{}.jpeg'.format(j))
+        # im.save(imfilepath)
 
-        if j == args.tsteps:
-            # save if traj is complete
-            print("saving trajectory")
-            with open(os.path.join(current_save_dir, "obs_dict.pkl"), 'wb') as handle:
-                pickle.dump(observations, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            with open(os.path.join(current_save_dir, "policy_out.pkl"), 'wb') as handle:
-                pickle.dump(actions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        # if j == args.tsteps:
+        #     # save if traj is complete
+        #    print("saving trajectory")
+        #    with open(os.path.join(current_save_dir, "obs_dict.pkl"), 'wb') as handle:
+        #        pickle.dump(observations, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        #    with open(os.path.join(current_save_dir, "policy_out.pkl"), 'wb') as handle:
+        #        pickle.dump(actions, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+        env.move_to_neutral() 
+
     if i.game_over():
         break
     print()
