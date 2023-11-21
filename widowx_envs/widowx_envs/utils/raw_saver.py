@@ -72,9 +72,6 @@ class RawSaver():
         if reward_data is not None:
             with open('{}/reward_data.pkl'.format(traj_folder), 'wb') as file:
                 pkl.dump(reward_data, file)
-        language_input = input("Enter a short description of the trajectory: ")
-        with open('{}/lang.txt'.format(traj_folder), 'wb') as file:
-                pkl.dump(language_input, file)
 
 class RawSaverRailRL(RawSaver):
     def __init__(self, save_dir, ngroup=1000):
