@@ -351,7 +351,7 @@ class ImageReachingWidowX(StateReachingWidowX):
     def _to_float32_flat_image(image):
         return np.float32(image.flatten()) / 255.0
 
-    def _get_processed_image(self, image=None):
+    def _get_processed_image(self, image=None, original_img=False):
         if image is None:
             image = super(StateReachingWidowX, self).current_obs()['images'][0]
 
@@ -361,12 +361,13 @@ class ImageReachingWidowX(StateReachingWidowX):
             x, y, w, h = self._hp['image_crop_xywh']
             trimmed_image = image[x:x+w, y:y+h]
 
-        from skimage.transform import resize
-        downsampled_trimmed_image = resize(trimmed_image, (self.image_size, self.image_size),
-                                           anti_aliasing=True, preserve_range=True).astype(np.uint8)
+        if not original_img:
+            from skimage.transform import resize
+            trimmed_image = resize(trimmed_image, (self.image_size, self.image_size),
+                                            anti_aliasing=True, preserve_range=True).astype(np.uint8)
         if self._hp['transpose_image_to_chw']:
-            downsampled_trimmed_image = np.transpose(downsampled_trimmed_image, (2, 0, 1))
-        return self._to_float32_flat_image(downsampled_trimmed_image)
+            trimmed_image = np.transpose(trimmed_image, (2, 0, 1))
+        return self._to_float32_flat_image(trimmed_image)
 
     def step(self, action):
         obs = super(StateReachingWidowX, self).step(action)
@@ -398,12 +399,12 @@ class ImageReachingWidowX(StateReachingWidowX):
         except Exception as e:
             print(e)
 
-    def current_obs(self):
+    def current_obs(self, original_img=False):
         full_obs = super(StateReachingWidowX, self).current_obs()
         image = full_obs['images'][0]
         ee_coord = full_obs['full_state'][:3]
         vector_to_goal = self.goal_coord - ee_coord
-        processed_image = self._get_processed_image(image)
+        processed_image = self._get_processed_image(image, original_img)
 
         obs = {'image': processed_image, 'state': self.get_full_state(), 'vector_to_goal': vector_to_goal,
                'joints': full_obs['qpos'], 'desired_goal': self.goal_coord, 'achieved_goal': ee_coord}
