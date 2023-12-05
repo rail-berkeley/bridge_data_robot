@@ -126,6 +126,12 @@ pip3 install -e .
 python3 widowx_envs/widowx_env_service.py --client
 ```
 
+Try remotely teleop the robot arm
+
+```bash
+python3 widowx_envs/widowx_envs/teleop.py --ip <IP_ADDRESS>
+```
+
 ## Troubleshooting
 
 ##### Permission errors
