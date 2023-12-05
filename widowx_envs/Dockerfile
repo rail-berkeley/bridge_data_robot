@@ -60,7 +60,6 @@ ENV PYTHONPATH="${PYTHONPATH}:~/interbotix_ws/src/interbotix_ros_toolboxes/inter
 
 # install python dependencies
 COPY requirements.txt /tmp/requirements.txt
-RUN ls ~/interbotix_ws
 RUN source /opt/ros/noetic/setup.bash && source ~/interbotix_ws/devel/setup.bash && python3 -m venv --system-site-packages ~/myenv
 RUN source ~/myenv/bin/activate && pip install wheel && pip install -r /tmp/requirements.txt
 
