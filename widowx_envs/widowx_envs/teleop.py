@@ -24,6 +24,20 @@ def show_video(client, full_image=True):
     cv2.imshow("Robot Camera", img)
     cv2.waitKey(20)  # 20 ms
 
+print_yellow = lambda x: print("\033[93m {}\033[00m" .format(x))
+
+def print_help():
+    print_yellow("  Teleop Controls:")
+    print_yellow("    w, s : move forward/backward")
+    print_yellow("    a, d : move left/right")
+    print_yellow("    z, c : move up/down")
+    print_yellow("    i, k:  rotate yaw")
+    print_yellow("    j, l:  rotate pitch")
+    print_yellow("    n  m:  rotate roll")
+    print_yellow("    space: toggle gripper")
+    print_yellow("    r: reset robot")
+    print_yellow("    q: quit")
+
 def main():
     parser = argparse.ArgumentParser(description='Teleoperation for WidowX Robot')
     parser.add_argument('--ip', type=str, default='localhost')
@@ -33,17 +47,7 @@ def main():
     client = WidowXClient(host=args.ip, port=args.port)
     client.init(WidowXConfigs.DefaultEnvParams, image_size=256)
 
-    print("  Teleop Controls:")
-    print("    w, s : move forward/backward")
-    print("    a, d : move left/right")
-    print("    z, c : move up/down")
-    print("    i, k:  rotate yaw")
-    print("    j, l:  rotate pitch")
-    print("    n  m:  rotate roll")
-    print("    space: toggle gripper")
-    print("    r: reset robot")
-    print("    q: quit")
-
+    print_help()
     cv2.namedWindow("Robot Camera")
     is_open = 1
     running = True
@@ -92,7 +96,9 @@ def main():
             print("Gripper is now: ", is_open)
             client.step_action(np.array([0, 0, 0, 0, 0, 0, is_open]))
         elif key == ord('r'):
+            print("Resetting robot...")
             client.reset()
+            print_help()
 
         show_video(client)
 
