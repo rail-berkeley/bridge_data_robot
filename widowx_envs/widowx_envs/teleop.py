@@ -6,7 +6,10 @@ import cv2
 from widowx_envs.widowx_env_service import WidowXClient, WidowXConfigs
 
 def show_video(client, full_image=True):
-    """This shows the video from the camera for a given duration."""
+    """
+    This shows the video from the camera for a given duration.
+    Full image is the image before resized to default 256x256.
+    """
     res = client.get_observation()
     if res is None:
         print("No observation available... waiting")
