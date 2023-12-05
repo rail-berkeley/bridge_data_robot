@@ -213,10 +213,10 @@ class WidowX_Controller(RobotControllerBase):
             self.des_joint_angles = solution
             
             if not success:
-                print('no IK solution found')
-                self.open_gripper()
-                self.move_to_neutral()
-                raise Environment_Exception
+                print('no IK solution found, do nothing')
+                # self.open_gripper()
+                # self.move_to_neutral()
+                # raise Environment_Exception
 
             if check_effort:
                 max_effort_abs_values = np.array([800, 1000, 600.0, 600.0, 600.0, 700.0]) * 1.5 # experimenting with this

@@ -8,6 +8,7 @@ import math
 from widowx_envs.base.robot_base_env import RobotBaseEnv
 from widowx_envs.utils.exceptions import Environment_Exception
 from widowx_envs.utils.utils import ask_confirm
+from skimage.transform import resize
 
 import os
 from gym import spaces
@@ -361,7 +362,6 @@ class ImageReachingWidowX(StateReachingWidowX):
             x, y, w, h = self._hp['image_crop_xywh']
             trimmed_image = image[x:x+w, y:y+h]
 
-        from skimage.transform import resize
         downsampled_trimmed_image = resize(trimmed_image, (self.image_size, self.image_size),
                                            anti_aliasing=True, preserve_range=True).astype(np.uint8)
         if self._hp['transpose_image_to_chw']:

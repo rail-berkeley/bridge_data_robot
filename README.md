@@ -150,6 +150,11 @@ This command assumes the server is running on `localhost` (i.e the same machine)
 
 The robot should execute a few predefined movements. See the `bridge_data_v2` evaluation script [here](https://github.com/rail-berkeley/bridge_data_v2/blob/main/experiments/eval.py) for an example of how to send actions to the server. 
 
+Extra Util: To try teleop the robot arm remotely
+```bash
+python3 widowx_envs/widowx_envs/teleop.py --ip <IP_ADDRESS>
+```
+
 ## Troubleshooting
 
 ##### Permission errors
