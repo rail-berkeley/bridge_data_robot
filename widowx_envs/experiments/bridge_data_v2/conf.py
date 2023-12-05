@@ -4,7 +4,7 @@ import os.path
 BASE_DIR = '/'.join(str.split(__file__, '/')[:-1])
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
-from multicam_server.topic_utils import IMTopic
+from multicam_server.src.multicam_server.topic_utils import IMTopic
 from widowx_envs.widowx_env import VR_WidowX
 from widowx_envs.control_loops import TimedLoop
 from widowx_envs.policies.vr_teleop_policy import VRTeleopPolicy
@@ -12,8 +12,8 @@ from widowx_envs.policies.vr_teleop_policy import VRTeleopPolicy
 env_params = {
     'camera_topics': [IMTopic('/D435/color/image_raw'),
                       #IMTopic('/yellow/image_raw'),
-                      IMTopic('/blue/image_raw'),
-                      IMTopic('/wrist/image_raw')
+                      #IMTopic('/blue/image_raw'),
+                      #IMTopic('/wrist/image_raw')
                       ],
     'depth_camera_topics': [IMTopic('/D435/depth/image_rect_raw', dtype='16UC1')],
     'gripper_attached': 'custom',
@@ -29,7 +29,7 @@ agent = {
     'type': TimedLoop,
     'env': (VR_WidowX, env_params),
     'recreate_env': (False, 1),
-    'T': 500,
+    'T': 300,#500,
     'image_height': 480,
     'image_width': 640,
     'make_final_gif': False,
@@ -44,7 +44,7 @@ config = {
     'current_dir' : current_dir,
     'collection_metadata' : current_dir + '/collection_metadata.json',
     'start_index':0,
-    'end_index': 500,
+    'end_index': 199,#500,
     'agent': agent,
     'policy': policy,
     'save_format': ['raw'],
