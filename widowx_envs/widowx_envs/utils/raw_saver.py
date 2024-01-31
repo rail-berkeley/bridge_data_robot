@@ -9,13 +9,9 @@ import glob
 import numpy as np
 
 def count_trajs(save_dir):
-    #base_folder = '/'.join(str.split(save_dir, '/')[:-1])
-    base_folder = save_dir
-    print(base_folder)
-    #path = '/*/raw/traj_group*/*'
-    path = '/raw/traj_group*/*'
-    print(base_folder+path)
-    trajs = glob.glob(base_folder + path)
+
+    base_folder = '/'.join(str.split(save_dir, '/')[:-1])
+    trajs = glob.glob(base_folder + '/*/raw/traj_group*/*')
     return len(trajs)
 
 class RawSaver():
@@ -25,19 +21,15 @@ class RawSaver():
 
     def save_traj(self, itr, agent_data=None, obs_dict=None, policy_outputs=None, reward_data=None):
 
-        num_trajs = count_trajs(self.save_dir)
-
         print("##################################")
-        print('saving trajectory number {}'.format(num_trajs + 1))
+        print('saving trajectory number {}'.format(count_trajs(self.save_dir) + 1))
         print("##################################")
 
         igrp = itr // self.ngroup
-        # igrp = num_trajs // self.ngroup 
         group_folder = os.path.join(self.save_dir , 'raw/traj_group{}'.format(igrp))
         if not os.path.exists(group_folder):
             os.makedirs(group_folder)
 
-        # traj_folder = os.path.join(group_folder , 'traj{}'.format(num_trajs))
         traj_folder = os.path.join(group_folder , 'traj{}'.format(itr))
         if os.path.exists(traj_folder):
             print('trajectory folder {} already exists, deleting the folder'.format(traj_folder))
@@ -80,7 +72,12 @@ class RawSaver():
         if reward_data is not None:
             with open('{}/reward_data.pkl'.format(traj_folder), 'wb') as file:
                 pkl.dump(reward_data, file)
+
         language_input = input("Enter a short description of the trajectory: ")
+        confirmation = input("Type y if annotation is correct, n otherwise: ")
+        while confirmation == 'n': 
+            language_input = input("Enter a short description of the trajectory: ")
+            confirmation = input("Type y if annotation is correct, n otherwise: ")
         with open('{}/lang.txt'.format(traj_folder), 'w', encoding='utf-8') as file:
                 file.write(language_input)  
 

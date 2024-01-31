@@ -21,7 +21,6 @@ class DataCollectionManager(object):
         parser.add_argument('--gpu_id', type=int, help='the starting gpu_id', default=0)
         parser.add_argument('--ngpu', type=int, help='the number of gpus to use', default=1)
         parser.add_argument('--prefix', help='prefixes for data and exp dirs')
-        #parser.add_argument('--prefix', default='', help='prefixes for data and exp dirs')
 
         args = parser.parse_args(args_in)
         if hyperparams is None:
@@ -38,11 +37,7 @@ class DataCollectionManager(object):
             self.save_dir_prefix = save_dir_prefix
         else:
             self.save_dir_prefix = args.prefix
-        prefix = input("Enter time prefix:")
-        if prefix == "datetime":
-            self.time_prefix = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        else: 
-            self.time_prefix = prefix
+        self.time_prefix = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
     def run(self):
         hyperparams = self.hyperparams
@@ -97,5 +92,3 @@ class DataCollectionManager(object):
 
 if __name__ == '__main__':
     DataCollectionManager().run()
-    print('finished execution')
-    exit(0)

@@ -3,7 +3,7 @@ import os.path
 import sys
 import numpy as np
 from widowx_envs.utils.utils import timed, AttrDict, Configurable
-from widowx_envs.utils.raw_saver import RawSaver, count_trajs
+from widowx_envs.utils.raw_saver import RawSaver
 
 sys.path.append('/'.join(str.split(__file__, '/')[:-2]))
 
@@ -64,14 +64,9 @@ class TrajectoryCollector(Configurable):
         return default_dict
 
     def run(self):
-        self._hp.start_index = count_trajs(self._hp.data_save_dir) 
-        print('start index', self._hp.start_index)
-        print('end index', self._hp.end_index)
-        print('number of trajectories:', self._hp.end_index-self._hp.start_index+1)
         for i in range(self._hp.start_index, self._hp.end_index+1):
             for policy in self.policies:
                 self.take_sample(i, policy)
-        print('finished trajectory collection')
 
     @timed('traj sample time: ')
     def take_sample(self, index, policy):
@@ -120,4 +115,3 @@ class TrajectoryCollector(Configurable):
         print('saving figure', self._hp.data_save_dir + '/diagnostics.png')
         plt.savefig(self._hp.data_save_dir + '/diagnostics.png')
         # import pdb; pdb.set_trace()
-
