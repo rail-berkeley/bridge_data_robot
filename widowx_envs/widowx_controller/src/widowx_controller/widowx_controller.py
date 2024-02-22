@@ -24,6 +24,7 @@ try:
 except:
     # newer version of interbotix sdk
     from interbotix_xs_msgs.msg import JointGroupCommand
+    from interbotix_xs_msgs.srv import Reboot
 
 from widowx_envs.utils.exceptions import Environment_Exception
 from modern_robotics.core import JacobianSpace, Adjoint, MatrixLog6, se3ToVec, TransInv, FKinSpace
@@ -31,6 +32,44 @@ import widowx_envs.utils.transformation_utils as tr
 
 from widowx_controller.custom_gripper_controller import GripperController
 from widowx_controller.controller_base import RobotControllerBase
+
+import numpy as np
+from numba import jit
+
+# NOTE: experimental values
+ABS_MAX_JOINT_EFFORTS = np.array([800, 1000, 600.0, 600.0, 600.0, 700.0]) * 1.7
+
+@jit()
+def ModifiedIKinSpace(Slist, M, T, thetalist0, eomg, ev, maxiterations=40):
+    """
+    ModifiedIKinSpace - Inverse Kinematics in the Space Frame
+    this exposed the max_iterations parameter to the user
+
+    # original source:
+    https://github.com/NxRLab/ModernRobotics/blob/master/packages/Python/modern_robotics/core.py
+    """
+    start_time = time.time()
+    thetalist = np.array(thetalist0).copy()
+    i = 0
+    Tsb = FKinSpace(M,Slist, thetalist)
+    Vs = np.dot(Adjoint(Tsb), \
+                se3ToVec(MatrixLog6(np.dot(TransInv(Tsb), T))))
+    err = np.linalg.norm([Vs[0], Vs[1], Vs[2]]) > eomg \
+          or np.linalg.norm([Vs[3], Vs[4], Vs[5]]) > ev
+    while err and i < maxiterations:
+        thetalist = thetalist \
+                    + np.dot(np.linalg.pinv(JacobianSpace(Slist, \
+                                                          thetalist)), Vs)
+        i = i + 1
+        Tsb = FKinSpace(M, Slist, thetalist)
+        Vs = np.dot(Adjoint(Tsb), \
+                    se3ToVec(MatrixLog6(np.dot(TransInv(Tsb), T))))
+        err = np.linalg.norm([Vs[0], Vs[1], Vs[2]]) > eomg \
+              or np.linalg.norm([Vs[3], Vs[4], Vs[5]]) > ev
+    if err:
+        print('IKinSpace: did not converge')
+        print('Vs', Vs)
+    return (thetalist, not err)
 
 ##############################################################################
 
@@ -100,7 +139,7 @@ class ModifiedInterbotixArmXSInterface(InterbotixArmXSInterface):
             initial_guesses = [custom_guess]
 
         for guess in initial_guesses:
-            theta_list, success = mr.IKinSpace(self.robot_des.Slist, self.robot_des.M, T_sd, guess, 0.001, 0.001)
+            theta_list, success = ModifiedIKinSpace(self.robot_des.Slist, self.robot_des.M, T_sd, guess, 0.001, 0.001)
             solution_found = True
 
             # Check to make sure a solution was found and that no joint limits were violated
@@ -128,6 +167,7 @@ class ModifiedInterbotixArmXSInterface(InterbotixArmXSInterface):
         self.joint_commands = list(positions)
         joint_commands = JointGroupCommand(self.group_name, self.joint_commands)
         self.core.pub_group.publish(joint_commands)
+        self.T_sb = mr.FKinSpace(self.robot_des.M, self.robot_des.Slist, self.joint_commands)
 
 
 DEFAULT_ROTATION = np.array([[0 , 0, 1.0],
@@ -185,6 +225,21 @@ class WidowX_Controller(RobotControllerBase):
         self.neutral_joint_angles = np.array([-0.13192235, -0.76238847,  0.44485444, -0.01994175,  1.7564081,  -0.15953401])
         self.enable_rotation = enable_rotation
 
+    def reboot_motor(self, joint_name: str):
+        """Experimental function to reboot the motor
+        Supported joint names:
+            - waist, shoulder, elbow, forearm_roll,
+            - wrist_angle, wrist_rotate, gripper, left_finger, right_finger
+        """
+        rospy.wait_for_service('/wx250s/reboot_motors')
+        try:
+            reboot_motors = rospy.ServiceProxy('/wx250s/reboot_motors', Reboot)
+            response = reboot_motors(cmd_type='single', name=joint_name,
+                                     enable=True, smart_reboot=True)
+            return response
+        except rospy.ServiceException as e:
+            print("Service call failed:", e)
+
     def clean_shutdown(self):
         pid = os.getpid()
         logging.getLogger('robot_logger').info('Exiting example w/ pid: {}'.format(pid))
@@ -207,11 +262,12 @@ class WidowX_Controller(RobotControllerBase):
                 # this is a call from the `step` function so we use a custom faster way to set the ee pose
                 solution, success = self.bot.arm.set_ee_pose_matrix_fast(target_pose, custom_guess=self.get_joint_angles(), execute=True)
             else:
+                self.set_moving_time(moving_time=duration)
                 solution, success = self.bot.arm.set_ee_pose_matrix(target_pose, custom_guess=self.get_joint_angles(),
                                         moving_time=duration, accel_time=duration * 0.45, blocking=blocking)
-            
+
             self.des_joint_angles = solution
-            
+
             if not success:
                 print('no IK solution found, do nothing')
                 # self.open_gripper()
@@ -219,14 +275,11 @@ class WidowX_Controller(RobotControllerBase):
                 # raise Environment_Exception
 
             if check_effort:
-                max_effort_abs_values = np.array([800, 1000, 600.0, 600.0, 600.0, 700.0]) * 1.5 # experimenting with this
-                # max_effort_abs_values = np.array([800, 1000, 600.0, 300.0, 600.0, 700.0])
-                # max_effort_abs_values = np.array([10000] * 6)
-                if np.max(np.abs(self.get_joint_effort()) - max_effort_abs_values) > 10:
-                    print('violation ', np.abs(self.get_joint_effort()) - max_effort_abs_values)
-                    print('motor number: ', np.argmax(np.abs(self.get_joint_effort()) - max_effort_abs_values))
+                if np.max(np.abs(self.get_joint_effort()) - ABS_MAX_JOINT_EFFORTS) > 10:
+                    print('violation ', np.abs(self.get_joint_effort()) - ABS_MAX_JOINT_EFFORTS)
+                    print('motor number: ', np.argmax(np.abs(self.get_joint_effort()) - ABS_MAX_JOINT_EFFORTS))
                     print('max effort reached: ', self.get_joint_effort())
-                    print('max effort allowed ', max_effort_abs_values)
+                    print('max effort allowed ', ABS_MAX_JOINT_EFFORTS)
                     self.open_gripper()
                     self.move_to_neutral()
                     raise Environment_Exception
