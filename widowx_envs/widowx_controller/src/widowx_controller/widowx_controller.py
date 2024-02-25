@@ -245,7 +245,8 @@ class WidowX_Controller(RobotControllerBase):
                 # this is a call from the `step` function so we use a custom faster way to set the ee pose
                 solution, success = self.bot.arm.set_ee_pose_matrix_fast(target_pose, custom_guess=self.get_joint_angles(), execute=True)
             else:
-                self.set_moving_time(moving_time=duration)
+                if not step: # we want to move fast when it is step() call
+                    self.set_moving_time(moving_time=duration)
                 solution, success = self.bot.arm.set_ee_pose_matrix(target_pose, custom_guess=self.get_joint_angles(),
                                         moving_time=duration, accel_time=duration * 0.45, blocking=blocking)
 
