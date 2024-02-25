@@ -38,7 +38,7 @@ class WidowXConfigs:
 
     DefaultActionConfig = ActionConfig(
         port_number=5556,
-        action_keys=["init", "move", "gripper", "reset", "step_action"],
+        action_keys=["init", "move", "gripper", "reset", "step_action", "reboot_motor"],
         observation_keys=["image", "state", "full_image"],
         broadcast_port=5556 + 1,
     )
@@ -85,6 +85,7 @@ class WidowXActionServer():
             "move": self.__move,
             "step_action": self.__step_action,
             "reset": self.__reset,
+            "reboot_motor": self.__reboot_motor,
         }
 
     def start(self, threaded: bool = False):
@@ -163,6 +164,12 @@ class WidowXActionServer():
         self.init_robot(payload["env_params"], payload["image_size"])
         return WidowXStatus.SUCCESS
 
+    def __reboot_motor(self, payload) -> WidowXStatus:
+        joint_name = payload["joint_name"]
+        print(f"Experimental: Rebooting motor {joint_name}")
+        self.bridge_env.controller().reboot_motor(joint_name)
+        return WidowXStatus.SUCCESS
+
     def __observe(self, types: list) -> dict:
         if self.bridge_env:
             # we will default return image and proprio only
@@ -197,7 +204,7 @@ class WidowXActionServer():
                 eep,
                 duration=payload["duration"],
                 blocking=payload["blocking"],
-                step=False
+                step=False,
             )
             self.bridge_env._reset_previous_qpos()
         except Environment_Exception as e:
@@ -305,6 +312,14 @@ class WidowXClient():
         """Stop the client."""
         self.__client.stop()
 
+    def reboot_motor(self, joint_name: str):
+        """Experimentation: Force Reboot the motor.
+        Supported joint names:
+            - waist, shoulder, elbow, forearm_roll,
+            - wrist_angle, wrist_rotate, gripper, left_finger, right_finger
+        """
+        self.__client.act("reboot_motor", {"joint_name": joint_name})
+
 ##############################################################################
 
 
@@ -323,7 +338,7 @@ def show_video(client, duration, full_image=True):
             img = res["image"]
             # if img.shape[0] != 3:  # sanity check to make sure it's not flattened
             img = (img.reshape(3, 256, 256).transpose(1, 2, 0) * 255).astype(np.uint8)
-        cv2.imshow("img", img)
+        #cv2.imshow("img", img)
         cv2.waitKey(10)  # 10 ms
 
 
@@ -371,10 +386,19 @@ def main():
         #  - y: left
         #  - z: up
 
-        # move left up
-        res = widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 1.57, 1.57]))
+        # move left up with slanted gripper
+        res = widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 0.47, 0.3]))
         assert args.test or res == WidowXStatus.SUCCESS, "move failed"
         show_video(widowx_client, duration=1.5)
+
+        # test reboot motor, the gripper should get loosed for a quick moment
+        widowx_client.reboot_motor("wrist_angle")
+        show_video(widowx_client, duration=2)
+
+        # NOTE, use blocking to make sure the qpos is reset after the move
+        # this is important so that step_action works in this initial position
+        res = widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 1.57, 0.]), blocking=True)
+        show_video(widowx_client, duration=0.5)
 
         # close gripper
         print("Closing gripper...")
@@ -382,8 +406,11 @@ def main():
         assert args.test or res == WidowXStatus.SUCCESS, "gripper failed"
         show_video(widowx_client, duration=2.5)
 
-        print("Run single step_action")
-        widowx_client.step_action(np.array([0, 0, 0, 0, 0, 0, 0]))
+        print("Run step_action for 25 steps")
+        for _ in range(25):
+            start_time = time.time()
+            widowx_client.step_action(np.array([-0.005, 0.005, 0.005, 0, 0, 0, 0]), blocking=True)
+            print(f"Time taken for each step: {time.time() - start_time}")
         show_video(widowx_client, duration=0.5)
 
         # move right down
