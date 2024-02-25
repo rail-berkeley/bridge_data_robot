@@ -10,12 +10,12 @@ from widowx_envs.control_loops import TimedLoop
 from widowx_envs.policies.vr_teleop_policy import VRTeleopPolicy
 
 env_params = {
-    'camera_topics': [IMTopic('/D435/color/image_raw'),
+    'camera_topics': [#IMTopic('/D435/color/image_raw'),
                       #IMTopic('/yellow/image_raw'),
                       IMTopic('/blue/image_raw'),
-                      IMTopic('/wrist/image_raw')
+                      #IMTopic('/wrist/image_raw')
                       ],
-    'depth_camera_topics': [IMTopic('/D435/depth/image_rect_raw', dtype='16UC1')],
+    'depth_camera_topics': [], #[IMTopic('/D435/depth/image_rect_raw', dtype='16UC1')],
     'gripper_attached': 'custom',
     'skip_move_to_neutral': True,
     'move_to_rand_start_freq': -1,

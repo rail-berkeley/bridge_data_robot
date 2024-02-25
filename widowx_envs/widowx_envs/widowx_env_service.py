@@ -338,7 +338,7 @@ def show_video(client, duration, full_image=True):
             img = res["image"]
             # if img.shape[0] != 3:  # sanity check to make sure it's not flattened
             img = (img.reshape(3, 256, 256).transpose(1, 2, 0) * 255).astype(np.uint8)
-        cv2.imshow("img", img)
+        #cv2.imshow("img", img)
         cv2.waitKey(10)  # 10 ms
 
 
@@ -409,7 +409,7 @@ def main():
         print("Run step_action for 25 steps")
         for _ in range(25):
             start_time = time.time()
-            widowx_client.step_action(np.array([-0.005, 0.005, 0.005, 0, 0, 0, 0]))
+            widowx_client.step_action(np.array([-0.005, 0.005, 0.005, 0, 0, 0, 0]), blocking=True)
             print(f"Time taken for each step: {time.time() - start_time}")
         show_video(widowx_client, duration=0.5)
 
