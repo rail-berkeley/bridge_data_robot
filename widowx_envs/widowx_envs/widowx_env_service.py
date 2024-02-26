@@ -38,7 +38,7 @@ class WidowXConfigs:
 
     DefaultActionConfig = ActionConfig(
         port_number=5556,
-        action_keys=["init", "move", "gripper", "reset", "step_action", "reboot_motor"],
+        action_keys=["init", "move", "gripper", "reset", "step_action", "reboot_motor", "sleep"],
         observation_keys=["image", "state", "full_image"],
         broadcast_port=5556 + 1,
     )
@@ -86,6 +86,7 @@ class WidowXActionServer():
             "step_action": self.__step_action,
             "reset": self.__reset,
             "reboot_motor": self.__reboot_motor,
+            "sleep": self.__sleep,
         }
 
     def start(self, threaded: bool = False):
@@ -168,6 +169,11 @@ class WidowXActionServer():
         joint_name = payload["joint_name"]
         print(f"Experimental: Rebooting motor {joint_name}")
         self.bridge_env.controller().reboot_motor(joint_name)
+        return WidowXStatus.SUCCESS
+
+    def __sleep(self, payload) -> WidowXStatus:
+        print("Experimental: Entering sleep pose")
+        self.bridge_env.controller().bot.arm.go_to_sleep_pose()
         return WidowXStatus.SUCCESS
 
     def __observe(self, types: list) -> dict:
@@ -319,6 +325,10 @@ class WidowXClient():
             - wrist_angle, wrist_rotate, gripper, left_finger, right_finger
         """
         self.__client.act("reboot_motor", {"joint_name": joint_name})
+
+    def sleep(self):
+        """Experimental"""
+        self.__client.act("sleep", {})
 
 ##############################################################################
 
