@@ -173,7 +173,7 @@ class WidowXActionServer():
 
     def __sleep(self, payload) -> WidowXStatus:
         print("Experimental: Entering sleep pose")
-        self.bridge_env.controller().bot.arm.go_to_sleep_pose()
+        self.bridge_env.controller().bot.arm.go_to_sleep_pose(moving_time=1.0)
         return WidowXStatus.SUCCESS
 
     def __observe(self, types: list) -> dict:
