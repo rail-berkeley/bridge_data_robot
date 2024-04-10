@@ -39,7 +39,7 @@ class WidowXConfigs:
     DefaultActionConfig = ActionConfig(
         port_number=5556,
         action_keys=["init", "move", "gripper", "reset", "step_action", "reboot_motor"],
-        observation_keys=["image", "state", "full_image"],
+        observation_keys=["image", "state", "full_image", "motor_status"],
         broadcast_port=5556 + 1,
     )
 
@@ -97,7 +97,6 @@ class WidowXActionServer():
     def stop(self):
         """Stop the server."""
         self.__server.stop()
-        return WidowXStatus.SUCCESS
 
     def init_robot(self, env_params, image_size):
         """Public method to init the robot"""
@@ -172,17 +171,24 @@ class WidowXActionServer():
 
     def __observe(self, types: list) -> dict:
         if self.bridge_env:
-            # we will default return image and proprio only
+            # we will default return all observations
             obs = self.bridge_env.current_obs()
             obs = {
-                "image": obs["image"],
+                "image": mat_to_jpeg(obs["image"]), # lossy but faster
                 "state": obs["state"],
                 "full_image": mat_to_jpeg(obs["full_image"][0])  # faster
             }
+            if "motor_status" in types:
+                values = self.bridge_env.controller().check_motor_status().values
+                # TODO: assert the length of values
+                int_value = np.array(values, dtype=np.uint8)
+                obs["motor_status"] = int_value
         else:
             # use dummy img with random noise
             img = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
             obs = {"image": img, "state": {}, "full_image": img}
+            if "motor_status" in types:
+                obs["motor_status"] = np.zeros(10, dtype=np.uint8)
             print_red("WARNING: No bridge env not initialized.")
         return obs
 
@@ -301,24 +307,34 @@ class WidowXClient():
         Get the current camera image and proprioceptive state.
             :return a dict of observations
         """
-        res = self.__client.obs()
+        res = self.__client.obs(["image", "state", "full_image"])
         if res is None:
             return None
         # NOTE: this is a lossy conversion, but faster data transfer
+        res["image"] = jpeg_to_mat(res["image"])
         res["full_image"] = jpeg_to_mat(res["full_image"])
         return res
+
+    def get_motor_status(self) -> Optional[dict]:
+        """
+        Get the status of the motors.
+            :return a dict of motor status
+        """
+        res = self.__client.obs(["motor_status"])
+        return None if res is None else res["motor_status"]
 
     def stop(self):
         """Stop the client."""
         self.__client.stop()
 
-    def reboot_motor(self, joint_name: str):
+    def reboot_motor(self, joint_name: str) -> WidowXStatus:
         """Experimentation: Force Reboot the motor.
         Supported joint names:
             - waist, shoulder, elbow, forearm_roll,
             - wrist_angle, wrist_rotate, gripper, left_finger, right_finger
         """
-        self.__client.act("reboot_motor", {"joint_name": joint_name})
+        res = self.__client.act("reboot_motor", {"joint_name": joint_name})
+        return WidowXStatus.NO_CONNECTION if res is None else res["status"]
 
 ##############################################################################
 
