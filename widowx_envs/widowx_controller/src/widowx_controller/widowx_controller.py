@@ -223,6 +223,9 @@ class WidowX_Controller(RobotControllerBase):
         except rospy.ServiceException as e:
             print("Service call failed:", e)
 
+    def check_motor_status(self):
+        return self.bot.dxl.robot_get_motor_registers("group", "all", "Hardware_Error_Status")
+
     def clean_shutdown(self):
         pid = os.getpid()
         logging.getLogger('robot_logger').info('Exiting example w/ pid: {}'.format(pid))
