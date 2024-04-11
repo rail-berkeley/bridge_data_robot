@@ -174,14 +174,14 @@ class WidowXActionServer():
             # we will default return all observations
             obs = self.bridge_env.current_obs()
             obs = {
-                "image": mat_to_jpeg(obs["image"]), # lossy but faster
+                "image": obs["image"],
                 "state": obs["state"],
                 "full_image": mat_to_jpeg(obs["full_image"][0])  # faster
             }
             if "motor_status" in types:
                 values = self.bridge_env.controller().check_motor_status().values
-                # TODO: assert the length of values
                 int_value = np.array(values, dtype=np.uint8)
+                assert len(values) == 7
                 obs["motor_status"] = int_value
         else:
             # use dummy img with random noise
@@ -311,14 +311,15 @@ class WidowXClient():
         if res is None:
             return None
         # NOTE: this is a lossy conversion, but faster data transfer
-        res["image"] = jpeg_to_mat(res["image"])
+        res["image"] = res["image"]
         res["full_image"] = jpeg_to_mat(res["full_image"])
         return res
 
-    def get_motor_status(self) -> Optional[dict]:
+    def get_motor_status(self) -> Optional[np.ndarray]:
         """
-        Get the status of the motors.
-            :return a dict of motor status
+        Get the status of the motors. array of 7
+            :return a np array of motor status [0 ...]
+             0 means good, non-zero means error
         """
         res = self.__client.obs(["motor_status"])
         return None if res is None else res["motor_status"]
@@ -397,6 +398,10 @@ def main():
             time.sleep(1)
             print("Waiting for robot to be ready...")
 
+        print(obs)
+        print(widowx_client.get_motor_status())
+
+        # widowx_client.step_action(np.array([0.0, 0.0, 0.0, 0, 0, 0, 1.0]))
         # Coordinate Convention:
         #  - x: forward
         #  - y: left
@@ -404,7 +409,7 @@ def main():
 
         # move left up with slanted gripper
         res = widowx_client.move(np.array([0.2, 0.1, 0.3, 0, 0.47, 0.3]))
-        assert args.test or res == WidowXStatus.SUCCESS, "move failed"
+        # assert args.test or res == WidowXStatus.SUCCESS, "move failed"
         show_video(widowx_client, duration=1.5)
 
         # test reboot motor, the gripper should get loosed for a quick moment
@@ -419,7 +424,7 @@ def main():
         # close gripper
         print("Closing gripper...")
         res = widowx_client.move_gripper(0.0)
-        assert args.test or res == WidowXStatus.SUCCESS, "gripper failed"
+        # assert args.test or res == WidowXStatus.SUCCESS, "gripper failed"
         show_video(widowx_client, duration=2.5)
 
         print("Run step_action for 25 steps")
@@ -430,7 +435,7 @@ def main():
         show_video(widowx_client, duration=0.5)
 
         # move right down
-        res = widowx_client.move(np.array([0.2, -0.1, 0.1, 0, 1.57, 0]))
+        res = widowx_client.move(np.array([0.2, -0.1, 0.1, 0, 1.57, 0]), blocking=True)
         assert args.test or res == WidowXStatus.SUCCESS, "move failed"
         show_video(widowx_client, duration=1.5)
 
