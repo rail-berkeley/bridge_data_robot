@@ -185,7 +185,7 @@ class WidowXController(InterbotixArmXSInterface): # Needs overhauling, in progre
         # This is all provided in the URDF, motor config, and documentation. This should be in a config file
 
     def reboot_motor(self, joint_name: str):
-        """Experimental function to reboot the motor
+        """Experimental functio to reboot the motor
         Supported joint names:
             - waist, shoulder, elbow, forearm_roll,
             - wrist_angle, wrist_rotate, gripper, left_finger, right_finger
