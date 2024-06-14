@@ -73,6 +73,12 @@ ENV DATA=/home/robonet/trainingdata
 ENV EXP=/home/robonet/experiments
 ENV REALSENSE_SERIAL=920312072629
 
+# switch to custom interbotix_ros_core branch for experimental compliant mode support
+RUN cd ~/interbotix_ws/src/interbotix_ros_core && \
+    git remote add upstream https://github.com/youliangtan/interbotix_ros_core && \
+    git fetch upstream && \
+    git checkout upstream/noetic
+
 # build interbox ros packages
 RUN source /opt/ros/noetic/setup.bash \
     && source ~/interbotix_ws/devel/setup.bash \
