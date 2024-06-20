@@ -6,14 +6,13 @@ import cv2
 import argparse
 import numpy as np
 import logging
-import traceback
 
 from typing import Optional, Tuple, Any
 from widowx_envs.utils.exceptions import Environment_Exception
 
 # install from: https://github.com/youliangtan/edgeml
 from edgeml.action import ActionClient, ActionServer, ActionConfig
-from edgeml.internal.utils import mat_to_jpeg, jpeg_to_mat, compute_hash
+from edgeml.internal.utils import mat_to_jpeg, jpeg_to_mat
 
 ##############################################################################
 
@@ -353,20 +352,7 @@ def main():
 
     if args.server:
         widowx_server = WidowXActionServer(port=args.port, testing=args.test)
-
-        # try capture errors and hard restart the server
-        while True:
-            try:
-                # this is a blocking call
-                widowx_server.start()
-            except Exception as e:
-                if e == KeyboardInterrupt:
-                    break
-                print(traceback.format_exc())
-                print_red(f"{e}, Restarting server...")
-                widowx_server.stop()
-                widowx_server.hard_reset()
-        widowx_server.stop()
+        widowx_server.start()
 
     if args.client:
         widowx_client = WidowXClient(host=args.ip, port=args.port)
