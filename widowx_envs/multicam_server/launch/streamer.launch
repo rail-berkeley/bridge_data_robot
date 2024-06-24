@@ -14,6 +14,17 @@
     <arg name="camera_name" default="camera0" />
     <arg name="node_name" default="streamer" />
     <arg name="python_node" default="false" />
+    <arg name="is_digit" default="false" />
+
+    <!-- stream format of DIGIT (QVGA=320x240, 30 or 60fps; VGA=640x480, 15 or 30fps) -->
+    <arg name="digit_format" default="QVGA" /> 
+    <arg name="width" default="640" />
+    <arg name="height" default="480" />
+    <arg name="camera_connector_chart" default="" />
+    <arg name = "num_glitch_reset_tries" default="3" />
+
+
+
 
     <group if="$(arg python_node)">
         <node pkg="multicam_server" type="streamer.py" name="$(arg node_name)" output="screen">
@@ -23,6 +34,12 @@
             <param name="retry_on_fail" type="bool" value="$(arg retry_on_fail)" />
             <param name="buffer_queue_size" type="int" value="$(arg buffer_queue_size)" />
             <param name="camera_name" type="string" value="$(arg camera_name)" />
+            <param name="is_digit" type="bool" value="$(arg is_digit)" />
+            <param name="width" type="double" value="$(arg width)" />
+            <param name="height" type="double" value="$(arg height)" />
+            <param name="camera_connector_chart" type="string" value="$(arg camera_connector_chart)" />
+            <param name="num_glitch_reset_tries" type="int" value="$(arg num_glitch_reset_tries)" />
+            <param name="digit_format" type="string" value="$(arg digit_format)" />
         </node>
     </group>
 
@@ -38,3 +55,5 @@
         </include>
     </group>
 </launch>
+
+

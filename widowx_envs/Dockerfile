@@ -28,6 +28,11 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends \
     unzip \
     ffmpeg \
     git-lfs \
+    alsa-base \
+    alsa-utils \
+    pulseaudio \
+    libasound-dev \
+    libportaudio2 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

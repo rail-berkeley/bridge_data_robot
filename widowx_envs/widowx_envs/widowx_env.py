@@ -19,8 +19,16 @@ import rospy
 from sensor_msgs.msg import Image
 from multicam_server.topic_utils import IMTopic
 from widowx_controller.widowx_controller import WidowX_Controller
+import librosa
 
 ##############################################################################
+MIC_SAMPLE_FREQ = 44100
+MIC_OBS_LENGTH = 0.3 
+NFFT = 256
+HOP_LENGTH = 128
+MEL_HOP_LENGTH = 104 # selected to make mel_spectrogram have dimension 128x128
+N_MELS = 128
+############
 
 class WidowXEnv(RobotBaseEnv):
   
@@ -56,13 +64,17 @@ class WidowXEnv(RobotBaseEnv):
         self._controller.open_gripper(True)
         time.sleep(1.)
         if not self._hp.skip_move_to_neutral:
+            # print("moving to neutral here")
             self._controller.move_to_neutral(duration=1.5)
 
         if itraj is None:
+            print('moving to start state here ')
             self.move_to_startstate()
         else:
             if self._hp.move_to_rand_start_freq != -1:
+                print('a')
                 if itraj % self._hp.move_to_rand_start_freq == 0:
+                    print('b')
                     self.move_to_startstate()
 
         self._reset_previous_qpos()
@@ -200,15 +212,30 @@ class VR_WidowX(WidowXEnv):
         self.task_stage = 0
         obs = super(VR_WidowX, self).reset(itraj=itraj)
         start_key = 'handle'
-        print('waiting for {} button press to start recording. Press B to go to neutral.'.format(start_key))
+        print('waiting for {} button press to start recording. Press B to go to neutral, or A to take a picture of the goal object.'.format(start_key))
         buttons = self.get_vr_buttons()
         while not buttons[start_key]:
             buttons = self.get_vr_buttons()
             rospy.sleep(0.01)
             if 'B' in buttons and buttons['B']:
-                self.move_to_neutral()
+                self.move_to_neutral_low()
+                # self.move_to_neutral()
                 print("moved to neutral. waiting for {} button press to start recording.".format(start_key))
+            elif 'A' in buttons and buttons['A']: 
+                # self.move_to_grip()
+                # print("moved to pre-grip. waiting for {} button press to start recording.".format(start_key))
+                obs = self.current_obs() 
+                self.target_img = obs['images'][0, ...][..., ::-1]
         return self.current_obs()
+
+    def get_last_image(self): 
+        print("Press A to take a picture of the collected object")
+        buttons = self.get_vr_buttons()
+        while not buttons['A']:
+            buttons = self.get_vr_buttons()
+            rospy.sleep(0.01)
+        obs = self.current_obs()
+        return obs['images']
 
     def ask_confirmation(self):
         print('current endeffector pos', self.get_full_state()[:3])
@@ -490,6 +517,240 @@ class BridgeDataRailRLPrivateWidowX(WidowXEnv):
         obs['full_image'] = full_obs['images']
         obs['t_get_obs'] = time.time() - t0
         return obs
+
+
+class BridgeDataDigitWidowX(WidowXEnv):
+    def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, image_size=256,
+                 wrist_size=128, 
+                 dig_size=128, 
+                 control_viewpoint=0, # used for reward function
+                 **kwargs
+                 ):
+
+        super().__init__(env_params)
+        self.image_size = image_size
+        self.wrist_size = wrist_size
+        self.dig_size = dig_size 
+        self.digit_l_background = self.digit_r_background = None 
+        self.orig_back_l = self.orig_back_r = None 
+
+        self.task_id = task_id
+        self.num_tasks = num_tasks
+
+        # TODO: update this
+        self.observation_space = spaces.dict.Dict({
+            "image": spaces.Box(low=np.array([0]*self.image_size*self.image_size*3),
+                                high=np.array([255]*self.image_size*self.image_size*3), dtype=np.uint8),
+            "state": spaces.Box(-np.full(self.sdim, np.inf), np.full(self.sdim, np.inf), dtype=np.float64),
+            "desired_goal": spaces.Box(-np.full(3, np.inf), np.full(3, np.inf), dtype=np.float64),
+        })
+
+        self.move_except = False
+        self.reward_function = reward_function
+        self.control_viewpoint = control_viewpoint
+
+    def _default_hparams(self):
+        from multicam_server.topic_utils import IMTopic
+        default_dict = {
+            'gripper_attached': 'custom',
+            'skip_move_to_neutral': True,
+            'camera_topics': [IMTopic('/cam0/image_raw')],
+            'image_crop_xywh': None,  # can be a tuple like (0, 0, 100, 100)
+            # 'camera_topics': [IMTopic('/cam0/image_raw'), IMTopic('/cam1/image_raw'), IMTopic('/cam2/image_raw')],
+        }
+        parent_params = super()._default_hparams()
+        parent_params.update(default_dict)
+        return parent_params
+
+    def reset(self, itraj=None):
+        self.move_except = False
+        full_obs = super().reset(itraj)
+        if "digit_images" in full_obs:
+            assert len(full_obs['digit_images']) == 2, "You must connect and use two DIGITs."
+            digit_l, digit_r = full_obs['digit_images']
+            processed_digit_l = np.stack([ 
+                self._get_processed_image(image=digit_l, size=self.dig_size)
+            ], axis=0)
+            processed_digit_r = np.stack([ 
+                self._get_processed_image(image=digit_r, size=self.dig_size)
+            ], axis=0)
+            self.digit_l_background = processed_digit_l
+            self.digit_r_background = processed_digit_r
+            self.orig_back_l = digit_l 
+            self.orig_back_r = digit_r
+        else: 
+            self.digit_l_background = self.digit_r_background = None 
+        return full_obs 
+        # # TODO: (YL) test this, else just move bot back neutral
+        self._controller.open_gripper(True)
+        self._controller.move_to_neutral(duration=1.5)
+        time.sleep(1.)
+        self._reset_previous_qpos()
+        return self.current_obs()
+
+    @staticmethod
+    def _to_float32_flat_image(image):
+        return np.float32(image.flatten()) / 255.0
+
+    def _get_processed_image(self, image=None, size=None):
+        if size is None: 
+            size = self.image_size
+
+        # from skimage.transform import resize
+        # downsampled_trimmed_image = resize(image, (size, size), anti_aliasing=True, preserve_range=True).astype(np.uint8)
+        downsampled_trimmed_image = np.transpose(image, (2, 0, 1))
+        return self._to_float32_flat_image(downsampled_trimmed_image)
+
+    def step(self, action, get_obs_tstamp=None, blocking=True):
+        obs = super().step(action, get_obs_tstamp, blocking)
+        return obs, None, obs['env_done'], {}
+
+    def current_obs(self):
+        t0 = time.time()
+        full_obs = super().current_obs()
+
+        if len(full_obs['images']) == 1: # primary only
+            image_primary = full_obs['images'][0]
+            image_wrist = None
+        elif len(full_obs['images']) == 2: # primary + wrist 
+            image_primary = full_obs['images'][0]
+            image_wrist = full_obs['images'][1]
+
+        else: 
+            num_imgs = len(full_obs['images'])
+
+            raise ValueError(f'full_obs has {num_imgs} images.')
+        
+        
+        processed_primary = np.stack([
+            self._get_processed_image(image=image_primary, size=self.image_size)
+        ], axis=0)
+
+        processed_wrist = None 
+        if image_wrist is None: 
+            processed_wrist = None 
+        else: 
+            processed_wrist = np.stack([ 
+                self._get_processed_image(image=image_wrist, size=self.wrist_size)
+            ], axis=0)
+            
+        if "digit_images" in full_obs:
+            assert len(full_obs['digit_images']) == 2, "You must connect and use two DIGITs."
+            digit_l, digit_r = full_obs['digit_images']
+            if self.orig_back_l is None: 
+                self.orig_back_l = digit_l.copy() 
+                self.orig_back_r = digit_r.copy() 
+            digit_l -= self.orig_back_l 
+            digit_r -= self.orig_back_r
+            processed_digit_l = np.stack([ 
+                self._get_processed_image(image=digit_l, size=self.dig_size)
+            ], axis=0)
+            processed_digit_r = np.stack([ 
+                self._get_processed_image(image=digit_r, size=self.dig_size)
+            ], axis=0)
+            if self.digit_l_background is None: 
+                self.digit_l_background = processed_digit_l.copy() 
+                self.digit_r_background = processed_digit_r.copy() 
+            
+                
+        else: 
+            processed_digit_l = processed_digit_r = None 
+
+        obs = {
+            'image_0': processed_primary, 
+            'image_1': processed_wrist,
+            'digit_l': processed_digit_l, 
+            'digit_r': processed_digit_r, 
+            'background_l': self.digit_l_background, 
+            'background_r': self.digit_r_background, 
+            'state': self.get_full_state(),
+            'joints': full_obs['qpos'],
+            'env_done': full_obs['env_done'],
+            'full_obs': full_obs
+        }
+
+        if "imu" in full_obs: 
+            obs['imu'] = full_obs['imu']
+        if "mic" in full_obs: 
+            mic_data = full_obs["mic"]
+            spectrogram_data = np.abs(librosa.stft(mic_data, n_fft=NFFT, hop_length=HOP_LENGTH))
+            spectrogram_nonfft = np.abs(librosa.stft(mic_data, hop_length=MEL_HOP_LENGTH))
+            mel_spectro = librosa.feature.melspectrogram(S=spectrogram_nonfft**2, sr=MIC_SAMPLE_FREQ, n_mels=128)
+            mel_spectro = librosa.power_to_db(mel_spectro)
+            obs['mel_spectro'] = mel_spectro.flatten()[None, ...]
+    
+
+        if full_obs['env_done']:
+            obs['terminals'] = 1
+        else:
+            obs['terminals'] = 0
+
+        if self.move_except:
+            obs['env_done'] = 1
+            
+        obs['full_image'] = full_obs['images']
+        obs['t_get_obs'] = time.time() - t0
+        tfinal = time.time()
+        print("DELTA_T observation:     ", tfinal - t0)
+        return obs
+
+
+
+# class BridgeDataDigitWidowX(WidowXEnv):
+#     def __init__(self, env_params=None, reward_function=None, task_id=None, num_tasks=None, fixed_image_size=128,
+#                  control_viewpoint=0, # used for reward function
+#                  **kwargs
+#                  ):
+
+#         super().__init__(env_params)
+        
+#         self.task_id = task_id
+#         self.num_tasks = num_tasks
+
+#         self.move_except = False
+
+#         self.reward_function = reward_function
+#         self.control_viewpoint = control_viewpoint
+
+#     def _default_hparams(self):
+        
+
+#     def reset(self, itraj=None):
+#         self.move_except = False
+#         return super().reset(itraj)
+#         # # TODO: (YL) test this, else just move bot back neutral
+#         self._controller.open_gripper(True)
+#         self._controller.move_to_neutral(duration=1.5)
+#         time.sleep(1.)
+#         self._reset_previous_qpos()
+#         return self.current_obs()
+
+
+#     def step(self, action, get_obs_tstamp=None, blocking=True):
+#         obs = super().step(action, get_obs_tstamp, blocking)
+#         return obs, None, obs['env_done'], {}
+
+
+#     def current_obs(self):
+#         t0 = time.time()
+#         full_obs = super().current_obs()
+
+#         if self._previous_target_qpos is not None: 
+#             target, _ = self.get_target_state()
+#         else: 
+#             target = full_obs['transform_pose']
+#         obs = {
+#             'qpos': full_obs['qpos'], 
+#             'images': full_obs['images'], 
+#             'state': full_obs['full_state'],
+#             'xyz': full_obs['xyz'],
+#             'curr_transform': full_obs['transform_pose'],
+#             'target': target, 
+#             'eef_transform': full_obs['eef_transform'] 
+#         }
+#         if 'digit_images' in full_obs: 
+#             obs['digit_images'] = full_obs['digit_images']
+#         return obs
 
 ##############################################################################
 

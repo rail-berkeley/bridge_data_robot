@@ -1,20 +1,27 @@
 #! /usr/bin/python3
 
+from re import S
 from widowx_envs.control_loops import Environment_Exception
 import time
 from widowx_envs.base.base_env import BaseEnv
+
 from widowx_envs.utils import transformation_utils as tr
 import numpy as np
 from widowx_envs.utils.exceptions import Image_Exception
 import copy
 from widowx_envs.utils import AttrDict
+import threading
 
 # Rospkg lib
 import rospy
+from multicam_server.angle_streamer import AngleStreamer
 from multicam_server.topic_utils import IMTopic
 from multicam_server.camera_recorder import CameraRecorder
+from multicam_server.sensor_recorder import IMURecorder, MicRecorder
 from widowx_controller.widowx_controller import WidowX_Controller
 from widowx_controller.widowx_controller import publish_transform
+from PIL import Image
+import datetime 
 
 import logging
 import json
@@ -23,6 +30,7 @@ from gym import spaces
 from widowx_envs.utils import read_yaml_file
 import os
 from widowx_envs.utils.exceptions import Environment_Exception
+from std_msgs.msg import Bool
 
 def pix_resize(pix, target_width, original_width):
     return np.round((copy.deepcopy(pix).astype(np.float32) *
@@ -55,9 +63,17 @@ class RobotBaseEnv(BaseEnv):
         for name, value in self._hp.items():
             logging.getLogger('robot_logger').info('{}= {}'.format(name, value))
         logging.getLogger('robot_logger').info('---------------------------------------------------------------------------')
-
+        self._cameras_to_reset = []
         self._cameras = [CameraRecorder(t, False, False) for t in self._hp.camera_topics]
         self._camera_info = [c.camera_info for c in self._cameras]
+        camera_resetters = [rospy.Publisher(cam.topic_name + '/reset_flag', Bool) for cam in self._cameras]
+        self._cameras_to_reset.extend(camera_resetters)
+
+        if self._hp.get("record_img", False): 
+            img = self._cameras[0].get_image()[1][..., ::-1]
+            img = Image.fromarray(img)
+            time_prefix = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            img.save(f'/home/robonet/trainingdata/robonetv2/bridge_data_v2/imgs/{time_prefix}.jpeg')
 
         if "depth_camera_topics" in self._hp:
             print("depth camera topics", self._hp.depth_camera_topics)
@@ -67,6 +83,35 @@ class RobotBaseEnv(BaseEnv):
             self._depth_cameras = []
             self._depth_camera_info = []
 
+        if "digit_topics" in self._hp: 
+            for i, top in enumerate(self._hp.digit_topics): 
+                if isinstance(top, dict): 
+                    self._hp.digit_topics[i] = IMTopic(
+                        top["name"], width=top["width"], height=top["height"], is_python_node=top["is_python_node"]
+                    )
+            print("digit topics", self._hp.digit_topics)
+            self._digit_cameras = [CameraRecorder(t, False, False) for t in self._hp.digit_topics]
+            self._digit_camera_info = [c.camera_info for c in self._digit_cameras]
+            digit_resetters = [rospy.Publisher(cam.topic_name + '/reset_flag', Bool) for cam in self._digit_cameras]
+            self._cameras_to_reset.extend(digit_resetters)
+        else: 
+            self._digit_cameras = [] 
+            self._digit_camera_info = []
+        
+        if "imu_topic" in self._hp and self._hp.imu_topic: # Simple topic: just topic name
+            self._IMU = IMURecorder(self._hp.imu_topic)
+        else: 
+            self._IMU = None 
+
+        if "mic_topic" in self._hp and self._hp.mic_topic: 
+            self._mic = MicRecorder(self._hp.mic_topic)
+        else: 
+            self._mic = None 
+
+        if self._hp.get('stream_angles', False): 
+            self._angle_streamer = AngleStreamer(self)
+
+        self._reset_counter = 0
         self._controller.open_gripper(True)
 
         if len(self._cameras) > 1:
@@ -75,6 +120,8 @@ class RobotBaseEnv(BaseEnv):
                 'Camera image streams do not match)'
         if self._cameras:
             self._height, self._width = self._cameras[0].img_height, self._cameras[0].img_width
+        if self._digit_cameras: 
+            self._digit_height, self._digit_width = self._digit_cameras[0].img_height, self._digit_cameras[0].img_width
 
         if len(self._cameras) == 1:
             self._cam_names = ['front']
@@ -84,9 +131,14 @@ class RobotBaseEnv(BaseEnv):
             self._cam_names = ['cam{}'.format(i) for i in range(len(self._cameras))]
 
         self._reset_counter, self._previous_target_qpos = 0, None
-
+        
         if not self._hp.start_at_current_pos:
             self._controller.move_to_neutral(duration=3)
+        eep = self._controller.get_cartesian_pose()[:3]
+        print('\n current eep:')
+        print(eep)
+        print('\n')
+
 
         self.action_space = spaces.Box(
             np.asarray([-0.05, -0.05, -0.05, -0.25, -0.25, -0.25, 0.]),
@@ -144,7 +196,7 @@ class RobotBaseEnv(BaseEnv):
                         'gripper_params': AttrDict(
                             des_pos_max=1,
                             des_pos_min=0,
-                        )
+                        ),
         }
         parent_params = super(RobotBaseEnv, self)._default_hparams()
         parent_params.update(default_dict)
@@ -275,7 +327,8 @@ class RobotBaseEnv(BaseEnv):
 
     def get_full_state(self):
         eep = self._controller.get_cartesian_pose(matrix=True)
-        return tr.transform2state(eep, self._controller.get_gripper_position(), self._controller.default_rot)
+        return tr.transform2state(eep, self._controller.get_gripper_position(), self._controller.default_rot)\
+
 
     def current_obs(self):
         obs = {}
@@ -309,12 +362,23 @@ class RobotBaseEnv(BaseEnv):
         obs['images'] = self.render()
         if self._depth_cameras:
             obs['depth_images'] = self.depth_render()
+        if self._digit_cameras: 
+            obs['digit_images'] = self.digit_render()
         logging.getLogger('robot_logger').info('time for rendering {}'.format(time.time() - t0))
 
         obs['high_bound'], obs['low_bound'] = copy.deepcopy(self._high_bound), copy.deepcopy(self._low_bound)
 
         obs['env_done'] = False
         obs['t_get_obs'] = time.time() - t0
+
+        obs['xyz'] = self._controller.get_cartesian_pose()[:3]
+        obs["transform_pose"] = self._controller.get_cartesian_pose(matrix=True)
+
+        if self._IMU: 
+            obs['imu'] = self._IMU.get_reading()
+        
+        if self._mic: 
+            obs['mic'] = self._mic.get_reading()
         return obs
 
     def _move_to_state(self, target_xyz, target_zangle, duration=1.5):
@@ -338,6 +402,14 @@ class RobotBaseEnv(BaseEnv):
         self._controller.move_to_neutral(duration)
         self._reset_previous_qpos()
 
+    def move_to_grip(self, duration=2.): 
+        self._controller.move_to_grip(duration)
+        self._reset_previous_qpos()
+
+    def move_to_neutral_low(self, duration=3.): 
+        self._controller.move_to_neutral_low(duration)
+        self._reset_previous_qpos()
+        
     def reset(self, itraj=None, reset_state=None):
         """
         Resets the environment and returns initial observation
@@ -404,6 +476,17 @@ class RobotBaseEnv(BaseEnv):
 
         return images
 
+    def digit_render(self):
+        if not self._digit_cameras: 
+            return []
+        cam_imgs = self._render_from_camera(self._digit_cameras)
+
+        images = np.zeros((self.ndigit, self._digit_height, self._digit_width, 3), dtype=np.uint8)
+        for c, img in enumerate(cam_imgs):
+            images[c] = img[:, :, ::-1]
+
+        return images
+
 
     def _render_from_camera(self, cameras):
         time_stamps = []
@@ -424,6 +507,13 @@ class RobotBaseEnv(BaseEnv):
             cam_imgs.append(image)
 
         return cam_imgs
+    
+    def reset_cameras(self): 
+        print("doing reset")
+        self._reset_counter += 1
+        print(self._cameras_to_reset)
+        for pub in self._cameras_to_reset: 
+            pub.publish(True)
 
     @property
     def adim(self):
@@ -447,13 +537,20 @@ class RobotBaseEnv(BaseEnv):
         return len(self._cameras)
 
     @property
+    def ndigit(self): 
+        return len(self._digit_cameras)
+
+    @property
     def camera_info(self):
         return self._camera_info
     
     @property
     def depth_camera_info(self):
         return self._depth_camera_info
-    
+
+    @property 
+    def digit_camera_info(self): 
+        return self._digit_camera_info
 
     @property
     def num_objects(self):

@@ -28,14 +28,21 @@ class WidowXConfigs:
             [0.1, -0.15, -0.1, -1.57, 0],
             [0.45, 0.25, 0.18, 1.57, 0],
         ],
+        "override_workspace_boundaries": None,
         "action_clipping": "xyz",
         "catch_environment_except": False,
         "start_state": [0.3, 0.0, 0.15, 0, 0, 0, 1], # pose when reset is called
         "skip_move_to_neutral": False,
         "return_full_image": False,
-        "camera_topics": [{"name": "/blue/image_raw"}],
+        "camera_topics": [
+            {"name": "/blue/image_raw"}, 
+            {"name": "/wrist/image_raw", "is_python_node": True}
+        ],
+        "digit_topics": [
+            {"name": '/digit_left/image_raw', "width": 320, "height":240, "is_python_node": True},
+            {"name": '/digit_right/image_raw', "width": 320, "height":240, "is_python_node": True}
+        ],
     }
-
     DefaultActionConfig = ActionConfig(
         port_number=5556,
         action_keys=["init", "move", "gripper", "reset", "step_action", "reboot_motor"],
@@ -104,7 +111,7 @@ class WidowXActionServer():
         if self.bridge_env:
             del self.bridge_env
 
-        from widowx_envs.widowx_env import BridgeDataRailRLPrivateWidowX
+        from widowx_envs.widowx_env import BridgeDataRailRLPrivateWidowX, BridgeDataDigitWidowX
         from multicam_server.topic_utils import IMTopic
         from tf.transformations import quaternion_from_euler
         from tf.transformations import quaternion_matrix
@@ -125,8 +132,7 @@ class WidowXActionServer():
             return tf_mat
 
         self.get_tf_mat = get_tf_mat
-        self.bridge_env = BridgeDataRailRLPrivateWidowX(
-            _env_params, fixed_image_size=image_size)
+        self.bridge_env = BridgeDataDigitWidowX(_env_params, image_size=image_size)
         print("Initialized bridge env.")
 
     def hard_reset(self) -> bool:
@@ -163,22 +169,17 @@ class WidowXActionServer():
 
         self.init_robot(payload["env_params"], payload["image_size"])
         return WidowXStatus.SUCCESS
-
+    
     def __reboot_motor(self, payload) -> WidowXStatus:
-        joint_name = payload["joint_name"]
-        print(f"Experimental: Rebooting motor {joint_name}")
-        self.bridge_env.controller().reboot_motor(joint_name)
-        return WidowXStatus.SUCCESS
+            joint_name = payload["joint_name"]
+            print(f"Experimental: Rebooting motor {joint_name}")
+            self.bridge_env.controller().reboot_motor(joint_name)
+            return WidowXStatus.SUCCESS
 
     def __observe(self, types: list) -> dict:
         if self.bridge_env:
             # we will default return image and proprio only
             obs = self.bridge_env.current_obs()
-            obs = {
-                "image": obs["image"],
-                "state": obs["state"],
-                "full_image": mat_to_jpeg(obs["full_image"][0])  # faster
-            }
         else:
             # use dummy img with random noise
             img = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
@@ -305,14 +306,14 @@ class WidowXClient():
         if res is None:
             return None
         # NOTE: this is a lossy conversion, but faster data transfer
-        res["full_image"] = jpeg_to_mat(res["full_image"])
+        # res["full_image"] = jpeg_to_mat(res["full_image"])
         return res
 
     def stop(self):
         """Stop the client."""
         self.__client.stop()
 
-    def reboot_motor(self, joint_name: str):
+def reboot_motor(self, joint_name: str):
         """Experimentation: Force Reboot the motor.
         Supported joint names:
             - waist, shoulder, elbow, forearm_roll,

@@ -47,6 +47,15 @@ class RawSaver():
                 for i in range(n_cams):
                     args = AttrDict(i=i, images=images, t=t, traj_folder=traj_folder)
                     save_single(args)
+        if 'digit_images' in obs_dict: 
+            digit_images = obs_dict['digit_images']
+            T, n_digits = digit_images.shape[:2]
+            for i in range(n_digits):
+                os.mkdir(traj_folder + '/digit_images{}'.format(i))
+            for t in range(T):
+                for i in range(n_digits):
+                    args = AttrDict(i=i, images=digit_images, t=t, traj_folder=traj_folder)
+                    save_single_digit(args)
         if 'depth_images' in obs_dict:
             depth_images = obs_dict['depth_images']
             T, n_cams = depth_images.shape[:2]
@@ -55,6 +64,9 @@ class RawSaver():
             for t in range(T):
                 for i in range(n_cams):
                     cv2.imwrite('{}/depth_images{}/im_{}.png'.format(traj_folder, i, t), depth_images[t, i])
+        
+        if 'target_image' in obs_dict: 
+            cv2.imwrite(f'{traj_folder}/target_image.png', obs_dict['target_image'])
 
         if agent_data is not None:
             with open('{}/agent_data.pkl'.format(traj_folder), 'wb') as file:
@@ -64,6 +76,8 @@ class RawSaver():
             obs_dict_no_image.pop('images')
             if "depth_images" in obs_dict_no_image:
                 obs_dict_no_image.pop('depth_images')
+            if "digit_images" in obs_dict_no_image: 
+                obs_dict_no_image.pop('digit_images')
             with open('{}/obs_dict.pkl'.format(traj_folder), 'wb') as file:
                 pkl.dump(obs_dict_no_image, file)
         if policy_outputs is not None:
@@ -99,6 +113,10 @@ def convert_listofdicts2dictoflists(list):
 
 def save_single(arg):
     cv2.imwrite('{}/images{}/im_{}.jpg'.format(arg.traj_folder, arg.i, arg.t), arg.images[arg.t, arg.i, :, :, ::-1])
+    return True
+
+def save_single_digit(arg):
+    cv2.imwrite('{}/digit_images{}/im_{}.jpg'.format(arg.traj_folder, arg.i, arg.t), arg.images[arg.t, arg.i, :, :, ::-1])
     return True
 
 
