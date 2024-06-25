@@ -10,28 +10,19 @@ from widowx_envs.control_loops import TimedLoop
 from widowx_envs.policies.vr_teleop_policy import VRTeleopPolicy
 
 env_params = {
-    'camera_topics': [#IMTopic('/D435/color/image_raw'),
+    'camera_topics': [IMTopic('/D435/color/image_raw'),
                       #IMTopic('/yellow/image_raw'),
                       IMTopic('/blue/image_raw'),
-                      IMTopic('/wrist/image_raw', is_python_node=True)
+                      IMTopic('/wrist/image_raw')
                       ],
-    'depth_camera_topics': [], # [IMTopic('/D435/depth/image_rect_raw', dtype='16UC1')],
-    'digit_topics': [
-        IMTopic('/digit_left/image_raw', width=320, height=240, is_python_node=True),
-        IMTopic('/digit_right/image_raw', width=320, height=240, is_python_node=True),
-    ],
-    'imu_topic': '/imu/imu_raw',
-    'mic_topic': '/mic/mic_raw',
-    
+    'depth_camera_topics': [IMTopic('/D435/depth/image_rect_raw', dtype='16UC1')],
     'gripper_attached': 'custom',
     'skip_move_to_neutral': True,
     'move_to_rand_start_freq': -1,
     'fix_zangle': 0.1,
     'move_duration': 0.2,
     'adaptive_wait': True,
-    'action_clipping': None,
-    'record_img': True, 
-    'stream_angles': True, 
+    'action_clipping': None
 }
 
 agent = {

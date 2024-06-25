@@ -1,5 +1,3 @@
-import threading
-
 import numpy as np
 import rospy
 import os
@@ -11,7 +9,6 @@ from sensor_msgs.msg import CameraInfo
 import copy
 import hashlib
 import logging
-import time
 
 
 class LatestObservation(object):
@@ -35,8 +32,8 @@ class LatestObservation(object):
 
 
 class CameraRecorder:
-    TRACK_SKIP = 2  # the camera publisher works at 60 FPS but camera itself only goes at 30
-    MAX_REPEATS = 100  # camera errors after 10 repeated frames in a row
+    TRACK_SKIP = 2        # the camera publisher works at 60 FPS but camera itself only goes at 30
+    MAX_REPEATS = 100      # camera errors after 10 repeated frames in a row
 
     def __init__(self, topic_data, opencv_tracking=False, save_videos=False):
         """
@@ -72,15 +69,13 @@ class CameraRecorder:
         else:
             # Trys to guess the correct camera info name based on ROS conventions.
             # If this code is hanging, manually set the info_name in the conf file when defining the IMTopic
-            self._camera_info_name = os.path.join(os.path.split(self._topic_name)[0], "camera_info")
+            self._camera_info_name= os.path.join(os.path.split(self._topic_name)[0], "camera_info")
+        print("Trying to read camera info from ", self._camera_info_name)
 
-        if topic_data.is_python_node:
-            # FIXME: DIGIT must use the python streamer node, which currently does not publish info
-            self._camera_info = None
-        else:
-            print("Trying to read camera info from ", self._camera_info_name)
-            self._camera_info = rospy.wait_for_message(self._camera_info_name, CameraInfo)
-            print("Successfully read camera info")
+        self._camera_info = rospy.wait_for_message(self._camera_info_name, CameraInfo)
+
+        print("Successfully read camera info")
+
 
         rospy.Subscriber(topic_data.name, Image_msg, self.store_latest_im)
         logger = logging.getLogger('robot_logger')
@@ -89,8 +84,7 @@ class CameraRecorder:
         if not success:
             print('Still waiting for an image to arrive at CameraRecorder... Topic name:', self._topic_name)
             self._status_sem.acquire()
-        logger.info(
-            "Cameras {} subscribed: stream is {}x{}".format(self._topic_data.name, self._cam_width, self._cam_height))
+        logger.info("Cameras {} subscribed: stream is {}x{}".format(self._topic_data.name, self._cam_width, self._cam_height))
 
     def _cam_start_tracking(self, lt_ob, point):
         lt_ob.reset_tracker()
@@ -113,7 +107,7 @@ class CameraRecorder:
         self._cam_start_tracking(self._latest_image, start_points[0])
         self._is_tracking = True
         self._latest_image.mutex.release()
-        rospy.sleep(2)  # sleep a bit for first few messages to initialize tracker
+        rospy.sleep(2)   # sleep a bit for first few messages to initialize tracker
 
         logging.getLogger('robot_logger').info("TRACKING INITIALIZED")
 
@@ -125,7 +119,7 @@ class CameraRecorder:
 
     def _bbox2point(self, bbox):
         point = np.array([int(bbox[1]), int(bbox[0])]) \
-                + np.array([self.box_height / 2, self.box_height / 2])
+                  + np.array([self.box_height / 2, self.box_height / 2])
         return point.astype(np.int32)
 
     def get_track(self):
@@ -147,7 +141,7 @@ class CameraRecorder:
             if current_hash == self._last_hash_get_image:
                 # logging.getLogger('robot_logger').error('Repeated images, camera queried too fast!')
                 # rospy.signal_shutdown('shutting down.')
-                print(f'[{self._topic_name}] repeated images for get_image method!')
+                print('repated images for get_image method!')
         self._last_hash_get_image = current_hash
         self._latest_image.mutex.release()
         return time_stamp, img_cv2
@@ -191,10 +185,6 @@ class CameraRecorder:
                 latest_obsv.bbox = np.array(bbox).astype(np.int32).reshape(-1)
             latest_obsv.track_itr += 1
 
-    @property
-    def topic_name(self):
-        return self._topic_name
-
     def store_latest_im(self, data):
         self._latest_image.mutex.acquire()
         # if self._latest_image.tstamp_img is not None:
@@ -237,54 +227,12 @@ class CameraRecorder:
     @property
     def camera_info(self):
         return self._camera_info
+    
 
-
-class GlitchChecker(CameraRecorder):
-    def __init__(self, topic_data, streamer, opencv_tracking=False, save_videos=False):
-        super().__init__(topic_data, opencv_tracking, save_videos)
-        self.streamer = streamer
-        self._log_glitches = True
-        self._glitch_log_dir = "/home/robonet/trainingdata/robonetv2/bridge_data_v2/glitches"
-
-    def store_latest_im(self, data):
-        super().store_latest_im(data)
-        curr_image = self.get_image()[1]
-
-        if (GlitchChecker.is_glitched(curr_image)
-                and hasattr(self, "streamer")
-                and not self.streamer.in_reset()):
-            rospy.logerr(f"[{self.streamer.topic_name}] Glitch detected by watcher thread.")
-            if self._log_glitches:
-                self._glitch_name = f"{int(time.time() * 100)}.jpg"
-                self._curr_image = curr_image
-                self._save_sema = threading.Semaphore(value=0)
-                save_thread = threading.Thread(target=self.save_image)
-                save_thread.run()
-            self.streamer.reset_connection(True)
-            if self._log_glitches:
-                self._save_sema.acquire()
-            rospy.sleep(10)
-
-    def save_image(self):
-        cv2.imwrite(
-            f"{self._glitch_log_dir}/{self._glitch_name}",
-            self._curr_image[:, :, ::-1]
-        )
-        rospy.loginfo(
-            f"[{self.streamer.topic_name}] Logged detected glitch to {self._glitch_log_dir}/{self._glitch_name}")
-        self._save_sema.release()
-
-    @classmethod
-    def is_glitched(cls, img):
-        grayscale_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        vert_gradient = cv2.Sobel(grayscale_img, ddepth=cv2.CV_32F, dx=0, dy=1, ksize=3)
-        vert_gradient = cv2.convertScaleAbs(vert_gradient)
-        return (vert_gradient > 50).sum() > 50
 
 
 if __name__ == '__main__':
     from multicam_server.topic_utils import IMTopic
-
     rospy.init_node("camera_rec_test")
     imtopic = IMTopic('/cam1/image_raw')
     rec = CameraRecorder(imtopic)

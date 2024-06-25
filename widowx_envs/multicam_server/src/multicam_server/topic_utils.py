@@ -20,7 +20,6 @@ class IMTopic:
     dtype: str = "bgr8"
     flip: bool = False
     info_name: str = None
-    is_python_node: bool = False
 
     def process_image(self, img):
         # Check for overcrop conditions

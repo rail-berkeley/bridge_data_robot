@@ -3,7 +3,7 @@
 bash $(dirname "$0")/setup.sh || exit 1
 
 python_node_string='python_node:=false'
-camera_string='realsense:=false'
+camera_string='realsense:=true'
 
 source /opt/ros/noetic/setup.bash
 source ~/interbotix_ws/devel/setup.bash

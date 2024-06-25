@@ -38,14 +38,11 @@ class BlockingLoop(Configurable):
             'adim':None,
             'sdim':None,
             'ncam':1,
-            'image_height': 480, 
-            'image_width': 640,
-            'ndigit': 2,
-            'digit_height': 240,
-            'digit_width': 320,
             'rejection_sample':False,   # repeatedly attemp to collect a trajectory if error occurs
             'type':None,
             'env':None,
+            'image_height' : 48,
+            'image_width' : 64,
             'nchannels':3,
             'data_save_dir':'',     # path where collected training data will be stored
             'log_dir':'',           # path where logs and viusals will be stored
@@ -153,8 +150,6 @@ class BlockingLoop(Configurable):
                 elif k == 'depth_images':
                     self._agent_cache['depth_images'] = np.zeros((T, env_obs['depth_images'].shape[0], agent_img_height, agent_img_width),
                                                                  dtype=env_obs['depth_images'].dtype)
-                elif k == 'digit_images': 
-                    self._agent_cache['digit_images'] = np.zeros((T, self._hp.ndigit, self._hp.digit_height, self._hp.digit_width, 3), dtype=np.uint8)
                 elif isinstance(env_obs[k], np.ndarray):
                     obs_shape = [T] + list(env_obs[k].shape)
                     self._agent_cache[k] = np.zeros(tuple(obs_shape), dtype=env_obs[k].dtype)
@@ -177,8 +172,6 @@ class BlockingLoop(Configurable):
                 resize_store(t, self._agent_cache['images'], env_obs['images'])
             elif k == 'depth_images':
                 resize_store(t, self._agent_cache['depth_images'], env_obs['depth_images'])
-            elif k == 'digit_images': 
-                resize_store(t, self._agent_cache['digit_images'], env_obs['digit_images'])
             elif k == 'obj_image_locations':
                 self.traj_points.append(copy.deepcopy(env_obs['obj_image_locations'][0]))  # only take first camera
                 env_obs['obj_image_locations'] = np.round((env_obs['obj_image_locations'] *
@@ -444,7 +437,7 @@ class TimedLoop(BlockingLoop):
 
                 print('tstep', self._cache_cntr - 1)
                 pi_t = policy.act(**get_policy_args(policy, obs, self._cache_cntr - 1, i_traj, agent_data))
-                
+
                 if 'done' in pi_t:
                     done = pi_t['done']
                 try:
@@ -469,10 +462,6 @@ class TimedLoop(BlockingLoop):
             traj_ok = self.env.goal_reached()
             print('goal_reached', traj_ok)
 
-        if hasattr(self.env, "target_img"):
-            target_image = self.env.target_img
-            obs['target_image'] = target_image
-
         if self._hp.ask_confirmation:
             traj_ok = self.env.ask_confirmation()
         agent_data['traj_ok'] = traj_ok
@@ -481,6 +470,6 @@ class TimedLoop(BlockingLoop):
             agent_data['camera_info'] = self.env.camera_info
         if 'depth_images' in obs:
             agent_data['depth_camera_info'] = self.env.depth_camera_info
-        
+
         self._required_rollout_metadata(agent_data, self._cache_cntr, traj_ok)
         return agent_data, obs, policy_outputs
