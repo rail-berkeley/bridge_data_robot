@@ -24,6 +24,8 @@ services:
       # $HOME/widowx_data:/home/robonet/trainingdata
       - ./widowx_envs:/home/robonet/widowx_envs
       - /dev:/dev  # for host tty access
+      # NOTE (YL): Experimental: Use custom compliant control for wx250s arm, default is normal mode
+      # - $HOME/bridge_data_robot/compliant_wx250s.yaml:/home/robonet/interbotix_ws/src/interbotix_ros_manipulators/interbotix_ros_xsarms/interbotix_xsarm_control/config/wx250s.yaml
 
   bridge_data_v2:
     image: robonet-bridge-data-v2

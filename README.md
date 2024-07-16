@@ -24,6 +24,7 @@ This builds the `robonet-base` image, which contains all of the ROS dependencies
 Once this is running, you can execute commands in the running container like so:
 
 ```bash
+cd bridge_data_robot
 docker compose exec robonet bash -lic "go_sleep"
 ```
 
