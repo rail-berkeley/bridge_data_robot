@@ -222,14 +222,14 @@ class WidowX_Controller(RobotControllerBase):
                 max_effort_abs_values = np.array([800, 1000, 600.0, 600.0, 600.0, 700.0]) * 1.5 # experimenting with this
                 # max_effort_abs_values = np.array([800, 1000, 600.0, 300.0, 600.0, 700.0])
                 # max_effort_abs_values = np.array([10000] * 6)
-                if np.max(np.abs(self.get_joint_effort()) - max_effort_abs_values) > 10:
-                    print('violation ', np.abs(self.get_joint_effort()) - max_effort_abs_values)
-                    print('motor number: ', np.argmax(np.abs(self.get_joint_effort()) - max_effort_abs_values))
-                    print('max effort reached: ', self.get_joint_effort())
-                    print('max effort allowed ', max_effort_abs_values)
-                    self.open_gripper()
-                    self.move_to_neutral()
-                    raise Environment_Exception
+                #if np.max(np.abs(self.get_joint_effort()) - max_effort_abs_values) > 10:
+                #    print('violation ', np.abs(self.get_joint_effort()) - max_effort_abs_values)
+                #    print('motor number: ', np.argmax(np.abs(self.get_joint_effort()) - max_effort_abs_values))
+                #    print('max effort reached: ', self.get_joint_effort())
+                #    print('max effort allowed ', max_effort_abs_values)
+                #    self.open_gripper()
+                #    self.move_to_neutral()
+                #    raise Environment_Exception
 
         except rospy.service.ServiceException:
             print('stuck during move')
