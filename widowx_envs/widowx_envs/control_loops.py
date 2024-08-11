@@ -5,7 +5,6 @@ from PIL import Image
 import numpy as np
 import time
 import os
-from widowx_envs.utils.image_utils import npy_to_gif, npy_to_mp4, resize_store
 import cv2
 from widowx_envs.utils.utils import Configurable, AttrDict, get_policy_args
 
@@ -300,24 +299,6 @@ class BlockingLoop(Configurable):
                 print('key invalid!')
                 valid = False
         return traj_okay
-
-    def save_gif(self, i_traj, overlay=False):
-        if self.traj_points is not None and overlay:
-            colors = [tuple([np.random.randint(0, 256) for _ in range(3)]) for __ in range(self.num_objects)]
-            for pnts, img in zip(self.traj_points, self.gif_images_traj):
-                for i in range(self.num_objects):
-                    center = tuple([int(np.round(pnts[i, j])) for j in (1, 0)])
-                    cv2.circle(img, center, 4, colors[i], -1)
-
-        for n in range(self.ncam):
-            cam_images = [im[n] for im in self.gif_images_traj]
-            if self._hp.video_format == 'gif':
-                video_func = npy_to_gif
-            elif  self._hp.video_format == 'mp4':
-                video_func = npy_to_mp4
-            else:
-                raise NotImplementedError
-            video_func(cam_images, self.traj_log_dir + '/video_cam{}'.format(n)) # todo make extra folders for each run?
 
     def _init(self):
         """
