@@ -1,3 +1,8 @@
+> ⚠️ **Warning:**  
+> **Bridge Data Robot has been deprecated.**  
+> Please use [manipulator_gym](https://github.com/rail-berkeley/manipulator_gym), which contains standard Gym envs, eval (Octo and OpenVLA), data collection utilities, and distributed control.
+
+
 # Bridge Data Robot
 
 Code for controlling Trossen WidowX robot arms.
